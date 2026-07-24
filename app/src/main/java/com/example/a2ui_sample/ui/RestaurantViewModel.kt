@@ -9,8 +9,10 @@ import com.example.a2ui_sample.agent.RestaurantAgent
 import com.example.a2ui_sample.data.MenuRepository
 import kotlinx.coroutines.launch
 import org.a2ui.compose.rendering.A2UIRenderer
+import java.util.UUID
 
 data class UiMessage(
+    val id: String = UUID.randomUUID().toString(),
     val content: String,
     val isFromAgent: Boolean,
     val isA2UI: Boolean = false,
@@ -20,6 +22,7 @@ data class UiMessage(
 /**
  * RestaurantViewModel
  * Orchestrates the chat flow using the REAL ADK RestaurantAgent.
+ * Maintains complete chat history with unique message IDs.
  */
 class RestaurantViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -32,14 +35,19 @@ class RestaurantViewModel(application: Application) : AndroidViewModel(applicati
     val uiMessages: List<UiMessage> = _uiMessages
 
     init {
-        _uiMessages.add(UiMessage("Hello! I'm your AI Food Assistant. Ask me to 'show veg burgers' or 'view cart'.", true))
+        _uiMessages.add(
+            UiMessage(
+                content = "Hello! I'm your AI Food Assistant. Ask me to 'show veg burgers', 'book a table', or 'view cart'.",
+                isFromAgent = true
+            )
+        )
     }
 
     fun sendMessage(query: String) {
         if (query.isBlank()) return
 
         Log.d("A2UI_FLOW", "1. User Input Received: $query")
-        _uiMessages.add(UiMessage(query, false))
+        _uiMessages.add(UiMessage(content = query, isFromAgent = false))
 
         viewModelScope.launch {
             Log.d("A2UI_FLOW", "2. Calling ADK RestaurantAgent...")
@@ -64,5 +72,15 @@ class RestaurantViewModel(application: Application) : AndroidViewModel(applicati
                 )
             )
         }
+    }
+
+    fun clearChat() {
+        _uiMessages.clear()
+        _uiMessages.add(
+            UiMessage(
+                content = "Chat cleared. Hello! I'm your AI Food Assistant. What would you like to order?",
+                isFromAgent = true
+            )
+        )
     }
 }

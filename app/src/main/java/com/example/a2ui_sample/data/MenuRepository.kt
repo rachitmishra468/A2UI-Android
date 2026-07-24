@@ -6,11 +6,12 @@ import com.google.gson.reflect.TypeToken
 
 /**
  * MenuRepository
- * Manages local menu data and cart state.
+ * Manages local menu data, cart state, and bookings.
  */
 class MenuRepository(private val context: Context) {
     private val gson = Gson()
     private val cart = mutableListOf<CartItem>()
+    private val bookings = mutableListOf<TableBooking>()
 
     fun getMenuItems(): List<MenuItem> {
         return try {
@@ -47,4 +48,10 @@ class MenuRepository(private val context: Context) {
     fun getCart(): List<CartItem> = cart
 
     fun getCartTotal(): Int = cart.sumOf { it.menuItem.price * it.quantity }
+
+    fun addBooking(booking: TableBooking) {
+        bookings.add(booking)
+    }
+
+    fun getBookings(): List<TableBooking> = bookings.toList()
 }

@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -36,6 +37,11 @@ fun AiRestaurantScreen(viewModel: RestaurantViewModel = viewModel()) {
         topBar = {
             TopAppBar(
                 title = { Text("AI Food Assistant", fontWeight = FontWeight.Bold) },
+                actions = {
+                    IconButton(onClick = { viewModel.clearChat() }) {
+                        Icon(Icons.Default.Clear, contentDescription = "Clear Chat")
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
             )
         },
@@ -59,7 +65,7 @@ fun AiRestaurantScreen(viewModel: RestaurantViewModel = viewModel()) {
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp)
             ) {
-                items(viewModel.uiMessages) { message ->
+                items(viewModel.uiMessages, key = { it.id }) { message ->
                     ChatBubble(message, viewModel)
                 }
             }

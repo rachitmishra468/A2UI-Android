@@ -27,6 +27,14 @@ class A2UIResponseBuilder {
             is AgentResponse.Recommendations -> buildMenuResults(response.items, "Recommendations")
             is AgentResponse.CartUpdate -> buildMessage("Added ${response.addedItem.name} to cart. Total items: ${response.totalCount}")
             is AgentResponse.CartView -> buildCartView(response)
+            is AgentResponse.BookingRequest -> buildMessage(
+                when (response.step) {
+                    "ask_people" -> "For how many people would you like to book a table?"
+                    "ask_time" -> "What time would you like to book the table?"
+                    else -> response.query
+                }
+            )
+            is AgentResponse.BookingConfirmation -> buildBookingConfirmation(response)
             is AgentResponse.Error -> buildMessage("Error: ${response.message}")
             is AgentResponse.Message -> buildMessage(response.content)
         }
@@ -178,6 +186,57 @@ class A2UIResponseBuilder {
         comps.add(text)
 
         update.add("components", comps)
+        root.add("updateComponents", update)
+        return gson.toJson(root)
+    }
+
+    private fun buildBookingConfirmation(response: AgentResponse.BookingConfirmation): String {
+        val root = JsonObject()
+        root.addProperty("version", "v0.10")
+        val update = JsonObject()
+        update.addProperty("surfaceId", surfaceId)
+        val components = JsonArray()
+
+        val rootCol = JsonObject()
+        rootCol.addProperty("id", "root")
+        rootCol.addProperty("component", "Column")
+        val children = JsonArray()
+        children.add("booking_header")
+        children.add("booking_id")
+        children.add("booking_people")
+        children.add("booking_time")
+        rootCol.add("children", children)
+        components.add(rootCol)
+
+        val header = JsonObject()
+        header.addProperty("id", "booking_header")
+        header.addProperty("component", "Text")
+        header.addProperty("text", "✓ Table Booking Confirmed")
+        header.addProperty("variant", "h2")
+        components.add(header)
+
+        val bookingId = JsonObject()
+        bookingId.addProperty("id", "booking_id")
+        bookingId.addProperty("component", "Text")
+        bookingId.addProperty("text", "Booking ID: ${response.booking.bookingId}")
+        bookingId.addProperty("variant", "subtitle")
+        components.add(bookingId)
+
+        val people = JsonObject()
+        people.addProperty("id", "booking_people")
+        people.addProperty("component", "Text")
+        people.addProperty("text", "Number of People: ${response.booking.numberOfPeople}")
+        people.addProperty("variant", "body")
+        components.add(people)
+
+        val time = JsonObject()
+        time.addProperty("id", "booking_time")
+        time.addProperty("component", "Text")
+        time.addProperty("text", "Booking Time: ${response.booking.bookingTime}")
+        time.addProperty("variant", "body")
+        components.add(time)
+
+        update.add("components", components)
         root.add("updateComponents", update)
         return gson.toJson(root)
     }

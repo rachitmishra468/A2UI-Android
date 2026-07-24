@@ -1,6 +1,7 @@
 package com.example.a2ui_sample.ui
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -8,7 +9,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -43,6 +44,51 @@ fun MenuCard(item: MenuItem) {
             Column(modifier = Modifier.padding(8.dp)) {
                 Text(text = item.name, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1)
                 Text(text = "₹${item.price}", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
+            }
+        }
+    }
+}
+
+@Composable
+fun MenuCardVertical(item: MenuItem) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(2.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AsyncImage(
+                model = item.image,
+                contentDescription = item.name,
+                modifier = Modifier
+                    .size(80.dp)
+                    .clip(RoundedCornerShape(8.dp)),
+                contentScale = ContentScale.Crop
+            )
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 12.dp)
+            ) {
+                Text(text = item.name, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text(
+                    text = "${item.type} • ${item.category}",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.outline
+                )
+                Text(
+                    text = "₹${item.price}",
+                    color = MaterialTheme.colorScheme.primary,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }
@@ -104,3 +150,17 @@ fun MenuList(items: List<MenuItem>) {
         }
     }
 }
+
+@Composable
+fun MenuListVertical(items: List<MenuItem>) {
+    LazyColumn(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = PaddingValues(vertical = 8.dp)
+    ) {
+        items(items) { item ->
+            MenuCardVertical(item)
+        }
+    }
+}
+

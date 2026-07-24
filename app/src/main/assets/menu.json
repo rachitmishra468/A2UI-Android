@@ -8,14 +8,6 @@
     "image": "https://img.freepik.com/free-photo/veggie-burger-with-lettuce-tomato_23-2148784534.jpg"
   },
   {
-    "id": 2,
-    "name": "Paneer Burger",
-    "category": "Burger",
-    "type": "Veg",
-    "price": 179,
-    "image": "https://img.freepik.com/free-photo/delicious-burger-with-many-ingredients_23-2148308800.jpg"
-  },
-  {
     "id": 3,
     "name": "Veg Meal",
     "category": "Meal",
@@ -23,14 +15,7 @@
     "price": 249,
     "image": "https://img.freepik.com/free-photo/delicious-indian-food-tray_23-2148747623.jpg"
   },
-  {
-    "id": 4,
-    "name": "Margherita Pizza",
-    "category": "Pizza",
-    "type": "Veg",
-    "price": 299,
-    "image": "https://img.freepik.com/free-photo/top-view-pepperoni-pizza-with-mushroom-sausages-bell-pepper-olive-corn-black-wooden_141793-2158.jpg"
-  },
+
   {
     "id": 5,
     "name": "Masala Dosa",
@@ -38,5 +23,22 @@
     "type": "Veg",
     "price": 120,
     "image": "https://img.freepik.com/free-photo/delicious-indian-dosa-composition_23-2149086051.jpg"
+  },
+
+  {
+    "id": 9,
+    "name": "Pepperoni Pizza",
+    "category": "Pizza",
+    "type": "Non-Veg",
+    "price": 349,
+    "image": "https://img.freepik.com/free-photo/pepperoni-pizza-with-mozzarella_23-2148784512.jpg"
+  },
+  {
+    "id": 10,
+    "name": "Chicken Pizza",
+    "category": "Pizza",
+    "type": "Non-Veg",
+    "price": 329,
+    "image": "https://img.freepik.com/free-photo/chicken-pizza-with-herbs_23-2148784599.jpg"
   }
 ]

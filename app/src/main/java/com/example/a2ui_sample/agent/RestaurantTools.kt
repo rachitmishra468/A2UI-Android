@@ -3,34 +3,30 @@ package com.example.a2ui_sample.agent
 import android.util.Log
 import com.example.a2ui_sample.data.AgentResponse
 import com.example.a2ui_sample.data.MenuRepository
+import com.example.a2ui_sample.data.TableBooking
 import com.google.adk.kt.annotations.Tool
 
 /**
  * RestaurantTools
- * Set of tools available to the ADK Agent for interacting with the menu and cart.
+ * Set of tools available to the ADK Agent for interacting with the menu, cart, and bookings.
  */
 class RestaurantTools(private val repository: MenuRepository) {
 
     private var lastResponse: AgentResponse? = null
+    private var bookingState: MutableMap<String, Any> = mutableMapOf()
 
     fun getLastResponse(): AgentResponse? = lastResponse
 
     fun reset() {
         lastResponse = null
+        // Keep bookingState unless an explicit reset of bookings is required.
+        // bookingState.clear()
     }
 
-
-//    fun searchMenu(
-//        category: String? = null,
-//        type: String? = null,
-//        maxPrice: Int? = null
-//    ): String {
-//        Log.d("A2UI_FLOW", "   >> Tool Executing: search_menu(category=$category, type=$type, maxPrice=$maxPrice)")
-//        val results = repository.searchMenu(category, type, maxPrice)
-//        lastResponse = AgentResponse.MenuResults(results, "Search: ${category ?: ""} ${type ?: ""} ${maxPrice ?: ""}")
-//        return "Found ${results.size} items."
-//    }
-
+    /**
+     * Returns the pending numberOfPeople stored in bookingState, if any.
+     */
+    fun getPendingBookingNumber(): String? = bookingState["numberOfPeople"] as? String
 
     @Tool(
         name = "search_menu",
@@ -47,9 +43,17 @@ class RestaurantTools(private val repository: MenuRepository) {
     ): String {
 
         Log.d("A2UI_FLOW", "searchMenu entered")
+
+        // Normalize type parameter for vegetarian keywords
+        val normalizedType = when {
+            type?.lowercase() in listOf("veg", "vegetarian", "veggie") -> "Veg"
+            type?.lowercase() in listOf("non-veg", "non veg", "nonveg", "non-vegetarian", "meat") -> "Non-Veg"
+            else -> type
+        }
+
         val results = repository.searchMenu(
             category,
-            type,
+            normalizedType,
             maxPrice
         )
 
@@ -114,7 +118,6 @@ class RestaurantTools(private val repository: MenuRepository) {
             }
         }
     }
-
 
 
 
@@ -257,6 +260,52 @@ class RestaurantTools(private val repository: MenuRepository) {
 
         return items.joinToString("\n") {
             "ID=${it.id}, Name=${it.name}, Price=${it.price}"
+        }
+    }
+
+    @Tool(
+        name = "book_table_step",
+        description = "Handle table booking flow. Steps: 'ask_people' to ask for number of people, 'confirm_time' after receiving time, 'complete' to finalize."
+    )
+    fun bookTableStep(
+        /** The current step in the booking flow: 'ask_people', 'ask_time', 'complete'. */
+        step: String,
+        /** For 'complete' step: number of people (e.g., '4'). */
+        numberOfPeople: String? = null,
+        /** For 'complete' step: time (e.g., '8:00 PM', '20:00'). */
+        bookingTime: String? = null
+    ): String {
+        Log.d("A2UI_FLOW", "book_table_step CALLED step=$step")
+
+        return when (step.lowercase()) {
+            "ask_people" -> {
+                bookingState.clear()
+                lastResponse = AgentResponse.BookingRequest("ask_people", "")
+                "For how many people would you like to book a table?"
+            }
+            "ask_time" -> {
+                if (numberOfPeople.isNullOrBlank()) {
+                    return "Please provide the number of people first."
+                }
+                bookingState["numberOfPeople"] = numberOfPeople
+                lastResponse = AgentResponse.BookingRequest("ask_time", "")
+                "What time would you like to book the table?"
+            }
+            "complete" -> {
+                if (numberOfPeople.isNullOrBlank() || bookingTime.isNullOrBlank()) {
+                    return "Missing booking details. Please try again."
+                }
+                val booking = TableBooking(
+                    numberOfPeople = numberOfPeople.toIntOrNull() ?: 1,
+                    bookingTime = bookingTime
+                )
+                repository.addBooking(booking)
+                lastResponse = AgentResponse.BookingConfirmation(booking)
+                "Table booking confirmed. Booking ID: ${booking.bookingId}. Table for ${booking.numberOfPeople} at ${booking.bookingTime}."
+            }
+            else -> {
+                "Invalid booking step."
+            }
         }
     }
 }
