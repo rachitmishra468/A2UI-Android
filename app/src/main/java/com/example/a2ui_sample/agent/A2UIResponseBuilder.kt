@@ -1,7 +1,7 @@
 package com.example.a2ui_sample.agent
 
-import com.example.a2ui_sample.data.AgentResponse
-import com.example.a2ui_sample.data.MenuItem
+import com.example.a2ui_sample.domain.model.AgentResponse
+import com.example.a2ui_sample.domain.model.MenuItem
 import com.google.gson.Gson
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
@@ -35,6 +35,7 @@ class A2UIResponseBuilder {
                 }
             )
             is AgentResponse.BookingConfirmation -> buildBookingConfirmation(response)
+            is AgentResponse.OrderPlaced -> buildOrderPlaced(response)
             is AgentResponse.Error -> buildMessage("Error: ${response.message}")
             is AgentResponse.Message -> buildMessage(response.content)
         }
@@ -56,20 +57,26 @@ class A2UIResponseBuilder {
     private fun buildMenuResults(items: List<MenuItem>, titleText: String): String {
         val root = JsonObject()
         root.addProperty("version", "v0.10")
+
         val update = JsonObject()
         update.addProperty("surfaceId", surfaceId)
-        
+
         val components = JsonArray()
-        
-        // Root Column
-        val rootCol = JsonObject()
-        rootCol.addProperty("id", "root")
-        rootCol.addProperty("component", "Column")
-        val children = JsonArray()
-        children.add("header")
-        items.forEach { children.add("item_card_${it.id}") }
-        rootCol.add("children", children)
-        components.add(rootCol)
+
+        // Root Container
+        val rootColumn = JsonObject()
+        rootColumn.addProperty("id", "root")
+        rootColumn.addProperty("component", "Column")
+
+        val rootChildren = JsonArray()
+        rootChildren.add("header")
+
+        items.forEach {
+            rootChildren.add("card_${it.id}")
+        }
+
+        rootColumn.add("children", rootChildren)
+        components.add(rootColumn)
 
         // Header
         val header = JsonObject()
@@ -79,49 +86,197 @@ class A2UIResponseBuilder {
         header.addProperty("variant", "h2")
         components.add(header)
 
-        // Items
         items.forEach { item ->
-            // Card wraps a Column which wraps Image and Text
-            val card = JsonObject()
-            card.addProperty("id", "item_card_${item.id}")
-            card.addProperty("component", "Card")
-            card.addProperty("child", "item_col_${item.id}")
-            components.add(card)
+            val pid = item.id
 
-            val col = JsonObject()
-            col.addProperty("id", "item_col_${item.id}")
-            col.addProperty("component", "Column")
-            val colChildren = JsonArray()
-            colChildren.add("item_img_${item.id}")
-            colChildren.add("item_name_${item.id}")
-            colChildren.add("item_price_${item.id}")
-            col.add("children", colChildren)
-            components.add(col)
+            // Root Card for this item -> single flowing Column (no Tabs - cleaner in a narrow chat bubble)
+            components.add(
+                JsonObject().apply {
+                    addProperty("id", "card_$pid")
+                    addProperty("component", "Card")
+                    addProperty("child", "card-col_$pid")
+                }
+            )
 
-            val img = JsonObject()
-            img.addProperty("id", "item_img_${item.id}")
-            img.addProperty("component", "Image")
-            img.addProperty("url", item.image)
-            img.addProperty("variant", "mediumFeature")
-            components.add(img)
+            components.add(
+                JsonObject().apply {
+                    addProperty("id", "card-col_$pid")
+                    addProperty("component", "Column")
+                    add(
+                        "children",
+                        JsonArray().apply {
+                            add("recipe-image_$pid")
+                            add("content-pad_$pid")
+                        }
+                    )
+                }
+            )
 
-            val name = JsonObject()
-            name.addProperty("id", "item_name_${item.id}")
-            name.addProperty("component", "Text")
-            name.addProperty("text", item.name)
-            name.addProperty("variant", "h4")
-            components.add(name)
+            // Image banner
+            components.add(
+                JsonObject().apply {
+                    addProperty("id", "recipe-image_$pid")
+                    addProperty("component", "Image")
+                    addProperty("url", item.image)
+                    addProperty("fit", "cover")
+                }
+            )
 
-            val price = JsonObject()
-            price.addProperty("id", "item_price_${item.id}")
-            price.addProperty("component", "Text")
-            price.addProperty("text", "₹${item.price}")
-            price.addProperty("variant", "body")
-            components.add(price)
+            // Padded content column
+            components.add(
+                JsonObject().apply {
+                    addProperty("id", "content-pad_$pid")
+                    addProperty("component", "Column")
+                    add(
+                        "children",
+                        JsonArray().apply {
+                            add("title_$pid")
+                            add("rating-row_$pid")
+                            add("times-text_$pid")
+                            add("meta-divider1_$pid")
+                            add("price-row_$pid")
+                        }
+                    )
+                }
+            )
+
+            components.add(
+                JsonObject().apply {
+                    addProperty("id", "title_$pid")
+                    addProperty("component", "Text")
+                    addProperty("text", item.name)
+                    addProperty("variant", "h3")
+                }
+            )
+
+            // Rating row: star icon + rating + review count
+            components.add(
+                JsonObject().apply {
+                    addProperty("id", "rating-row_$pid")
+                    addProperty("component", "Row")
+                    add("children", JsonArray().apply {
+                        add("star-icon_$pid")
+                        add("rating_$pid")
+                        add("review-count_$pid")
+                    })
+                    addProperty("align", "center")
+                }
+            )
+
+            components.add(
+                JsonObject().apply {
+                    addProperty("id", "star-icon_$pid")
+                    addProperty("component", "Icon")
+                    addProperty("name", "star")
+                }
+            )
+
+            components.add(
+                JsonObject().apply {
+                    addProperty("id", "rating_$pid")
+                    addProperty("component", "Text")
+                    addProperty("text", item.rating)
+                    addProperty("variant", "body")
+                }
+            )
+
+            components.add(
+                JsonObject().apply {
+                    addProperty("id", "review-count_$pid")
+                    addProperty("component", "Text")
+                    val reviewWord = if (item.reviewCount == 1) "review" else "reviews"
+                    addProperty("text", "(${item.reviewCount} $reviewWord)")
+                    addProperty("variant", "caption")
+                }
+            )
+
+            // Compact meta line: prep · cook · servings, all in one Text (no extra Rows/Icons/space)
+            components.add(
+                JsonObject().apply {
+                    addProperty("id", "times-text_$pid")
+                    addProperty("component", "Text")
+                    val metaParts = listOfNotNull(
+                        item.prepTime.takeIf { it.isNotBlank() },
+                        item.cookTime.takeIf { it.isNotBlank() },
+                        item.servings.takeIf { it.isNotBlank() }
+                    )
+                    addProperty("text", metaParts.joinToString("  •  "))
+                    addProperty("variant", "caption")
+                }
+            )
+
+            components.add(
+                JsonObject().apply {
+                    addProperty("id", "meta-divider1_$pid")
+                    addProperty("component", "Divider")
+                }
+            )
+
+            // Price + Add to Cart button, side by side
+            components.add(
+                JsonObject().apply {
+                    addProperty("id", "price-row_$pid")
+                    addProperty("component", "Row")
+                    add("children", JsonArray().apply {
+                        add("price_$pid")
+                        add("btn_$pid")
+                    })
+                    addProperty("align", "center")
+                    addProperty("justify", "spaceBetween")
+                }
+            )
+
+            components.add(
+                JsonObject().apply {
+                    addProperty("id", "price_$pid")
+                    addProperty("component", "Text")
+                    addProperty("text", "₹${item.price}")
+                    addProperty("variant", "h2")
+                }
+            )
+
+            components.add(
+                JsonObject().apply {
+                    addProperty("id", "btn_text_$pid")
+                    addProperty("component", "Text")
+                    addProperty("text", "Add to Cart")
+                }
+            )
+
+            components.add(
+                JsonObject().apply {
+                    addProperty("id", "btn_$pid")
+                    addProperty("component", "Button")
+                    addProperty("child", "btn_text_$pid")
+                    addProperty("variant", "primary")
+
+                    add(
+                        "action",
+                        JsonObject().apply {
+                            add(
+                                "event",
+                                JsonObject().apply {
+                                    addProperty("name", "addToCart")
+
+                                    add(
+                                        "context",
+                                        JsonObject().apply {
+                                            addProperty("itemId", item.id)
+                                            addProperty("itemName", item.name)
+                                            addProperty("price", item.price)
+                                        }
+                                    )
+                                }
+                            )
+                        }
+                    )
+                }
+            )
         }
 
         update.add("components", components)
         root.add("updateComponents", update)
+
         return gson.toJson(root)
     }
 
@@ -235,6 +390,66 @@ class A2UIResponseBuilder {
         time.addProperty("text", "Booking Time: ${response.booking.bookingTime}")
         time.addProperty("variant", "body")
         components.add(time)
+
+        update.add("components", components)
+        root.add("updateComponents", update)
+        return gson.toJson(root)
+    }
+
+    private fun buildOrderPlaced(response: AgentResponse.OrderPlaced): String {
+        val root = JsonObject()
+        root.addProperty("version", "v0.10")
+        val update = JsonObject()
+        update.addProperty("surfaceId", surfaceId)
+        val components = JsonArray()
+
+        val rootCol = JsonObject()
+        rootCol.addProperty("id", "root")
+        rootCol.addProperty("component", "Column")
+        val children = JsonArray()
+        children.add("order_header")
+        children.add("order_id")
+        response.order.items.forEach { children.add("order_item_${it.menuItem.id}") }
+        children.add("order_status")
+        children.add("order_total")
+        rootCol.add("children", children)
+        components.add(rootCol)
+
+        val header = JsonObject()
+        header.addProperty("id", "order_header")
+        header.addProperty("component", "Text")
+        header.addProperty("text", "✓ Order Placed Successfully")
+        header.addProperty("variant", "h2")
+        components.add(header)
+
+        val orderId = JsonObject()
+        orderId.addProperty("id", "order_id")
+        orderId.addProperty("component", "Text")
+        orderId.addProperty("text", "Order ID: ${response.order.orderId}")
+        orderId.addProperty("variant", "subtitle")
+        components.add(orderId)
+
+        response.order.items.forEach { orderItem ->
+            val itemText = JsonObject()
+            itemText.addProperty("id", "order_item_${orderItem.menuItem.id}")
+            itemText.addProperty("component", "Text")
+            itemText.addProperty("text", "${orderItem.menuItem.name} x ${orderItem.quantity}")
+            components.add(itemText)
+        }
+
+        val status = JsonObject()
+        status.addProperty("id", "order_status")
+        status.addProperty("component", "Text")
+        status.addProperty("text", "Status: ${response.order.status}")
+        status.addProperty("variant", "body")
+        components.add(status)
+
+        val total = JsonObject()
+        total.addProperty("id", "order_total")
+        total.addProperty("component", "Text")
+        total.addProperty("text", "Total Amount: ₹${response.order.totalAmount}")
+        total.addProperty("variant", "h3")
+        components.add(total)
 
         update.add("components", components)
         root.add("updateComponents", update)

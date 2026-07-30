@@ -84,12 +84,30 @@ class DataModelState {
             return value
         }
 
-        if (value is Map<*, *>) {
-            @Suppress("UNCHECKED_CAST")
-            return getNestedValue(value as Map<String, Any?>, keys, index + 1)
+        return when (value) {
+            is Map<*, *> -> {
+                @Suppress("UNCHECKED_CAST")
+                getNestedValue(value as Map<String, Any?>, keys, index + 1)
+            }
+            is List<*> -> {
+                val nextKey = keys[index + 1]
+                val listIndex = nextKey.toIntOrNull()
+                if (listIndex != null && listIndex in value.indices) {
+                    val item = value[listIndex]
+                    if (index + 1 == keys.size - 1) {
+                        item
+                    } else if (item is Map<*, *>) {
+                        @Suppress("UNCHECKED_CAST")
+                        getNestedValue(item as Map<String, Any?>, keys, index + 2)
+                    } else {
+                        null
+                    }
+                } else {
+                    null
+                }
+            }
+            else -> null
         }
-
-        return null
     }
 
     fun clear() {

@@ -5,40 +5,133 @@
     "category": "Burger",
     "type": "Veg",
     "price": 149,
-    "image": "https://img.freepik.com/free-photo/veggie-burger-with-lettuce-tomato_23-2148784534.jpg"
+    "image": "https://images.unsplash.com/photo-1550547660-d9450f859349?q=80&w=300&h=180&fit=crop",
+    "description": "Crispy veggie patty with lettuce, tomato and house sauce.",
+    "rating": "4.6",
+    "reviewCount": 1250,
+    "prepTime": "10 min prep",
+    "cookTime": "10 min cook",
+    "servings": "Serves 1",
+    "ingredients": [
+      { "text": "1 veggie patty" },
+      { "text": "1 burger bun" },
+      { "text": "Lettuce leaves" },
+      { "text": "1 tomato, sliced" },
+      { "text": "House special sauce" }
+    ],
+    "instructions": [
+      { "text": "1. Toast the burger bun until golden." },
+      { "text": "2. Pan-fry the veggie patty for 4-5 minutes per side." },
+      { "text": "3. Layer lettuce, tomato and sauce on the bun." },
+      { "text": "4. Add the patty and serve hot." }
+    ]
+  },
+  {
+    "id": 2,
+    "name": "Veg Meal",
+    "category": "Thali",
+    "type": "Veg",
+    "price": 249,
+    "image": "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=300&h=180&fit=crop",
+    "description": "A wholesome combo of rice, dal, sabzi, roti and salad.",
+    "rating": "4.7",
+    "reviewCount": 980,
+    "prepTime": "15 min prep",
+    "cookTime": "25 min cook",
+    "servings": "Serves 1",
+    "ingredients": [
+      { "text": "1 cup steamed rice" },
+      { "text": "1 cup dal" },
+      { "text": "Mixed vegetable sabzi" },
+      { "text": "2 rotis" },
+      { "text": "Side salad" }
+    ],
+    "instructions": [
+      { "text": "1. Cook rice and dal separately until soft." },
+      { "text": "2. Prepare the mixed vegetable sabzi." },
+      { "text": "3. Roll and cook the rotis on a hot tawa." },
+      { "text": "4. Plate everything together with fresh salad." }
+    ]
   },
   {
     "id": 3,
-    "name": "Veg Meal",
-    "category": "Meal",
-    "type": "Veg",
-    "price": 249,
-    "image": "https://img.freepik.com/free-photo/delicious-indian-food-tray_23-2148747623.jpg"
-  },
-
-  {
-    "id": 5,
     "name": "Masala Dosa",
     "category": "South Indian",
     "type": "Veg",
     "price": 120,
-    "image": "https://img.freepik.com/free-photo/delicious-indian-dosa-composition_23-2149086051.jpg"
+    "image": "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?q=80&w=300&h=180&fit=crop",
+    "description": "Crispy rice crepe filled with spiced potato masala.",
+    "rating": "4.8",
+    "reviewCount": 1540,
+    "prepTime": "12 hr fermentation",
+    "cookTime": "10 min cook",
+    "servings": "Serves 1",
+    "ingredients": [
+      { "text": "1 cup dosa batter" },
+      { "text": "2 boiled potatoes, mashed" },
+      { "text": "1 onion, sliced" },
+      { "text": "Mustard seeds and curry leaves" },
+      { "text": "Sambar and coconut chutney to serve" }
+    ],
+    "instructions": [
+      { "text": "1. Prepare the potato masala with onions and spices." },
+      { "text": "2. Spread the batter thin on a hot griddle." },
+      { "text": "3. Add the masala filling and fold the dosa." },
+      { "text": "4. Serve hot with sambar and chutney." }
+    ]
   },
-
   {
-    "id": 9,
+    "id": 4,
     "name": "Pepperoni Pizza",
     "category": "Pizza",
     "type": "Non-Veg",
     "price": 349,
-    "image": "https://img.freepik.com/free-photo/pepperoni-pizza-with-mozzarella_23-2148784512.jpg"
+    "image": "https://images.unsplash.com/photo-1513104890138-7c749659a591?q=80&w=300&h=180&fit=crop",
+    "description": "Classic pepperoni pizza on a crispy thin crust.",
+    "rating": "4.9",
+    "reviewCount": 2340,
+    "prepTime": "20 min prep",
+    "cookTime": "15 min cook",
+    "servings": "Serves 2",
+    "ingredients": [
+      { "text": "1 pizza base" },
+      { "text": "1/2 cup tomato sauce" },
+      { "text": "1 cup mozzarella cheese" },
+      { "text": "Pepperoni slices" },
+      { "text": "Oregano and chili flakes" }
+    ],
+    "instructions": [
+      { "text": "1. Spread tomato sauce evenly on the pizza base." },
+      { "text": "2. Sprinkle mozzarella cheese generously." },
+      { "text": "3. Arrange pepperoni slices on top." },
+      { "text": "4. Bake at 220°C for 12-15 minutes until golden." }
+    ]
   },
   {
-    "id": 10,
+    "id": 5,
     "name": "Chicken Pizza",
     "category": "Pizza",
     "type": "Non-Veg",
     "price": 329,
-    "image": "https://img.freepik.com/free-photo/chicken-pizza-with-herbs_23-2148784599.jpg"
+    "image": "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?q=80&w=300&h=180&fit=crop",
+    "description": "Loaded chicken pizza with bell peppers and cheese.",
+    "rating": "4.7",
+    "reviewCount": 1875,
+    "prepTime": "20 min prep",
+    "cookTime": "15 min cook",
+    "servings": "Serves 2",
+    "ingredients": [
+      { "text": "1 pizza base" },
+      { "text": "1/2 cup BBQ sauce" },
+      { "text": "1 cup shredded chicken" },
+      { "text": "Bell peppers, sliced" },
+      { "text": "1 cup mozzarella cheese" }
+    ],
+    "instructions": [
+      { "text": "1. Spread BBQ sauce on the pizza base." },
+      { "text": "2. Top with shredded chicken and bell peppers." },
+      { "text": "3. Cover generously with mozzarella cheese." },
+      { "text": "4. Bake at 220°C for 12-15 minutes until golden." }
+    ]
   }
 ]

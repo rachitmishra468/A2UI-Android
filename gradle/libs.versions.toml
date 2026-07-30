@@ -17,6 +17,7 @@ a2ui = "0.6.0"
 generativeai = "0.9.0"
 genai = "0.2.0"
 kotlinxSerialization = "1.7.3"
+room = "2.6.1"
 
 [libraries]
 google-adk = { group = "com.google.adk", name = "google-adk-kotlin-core-android", version.ref = "adk" }
@@ -44,6 +45,9 @@ androidx-compose-material-icons-extended = { group = "androidx.compose.material"
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
 gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
+androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
+androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
+androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 google-adk-ksp = { group = "com.google.adk", name = "google-adk-kotlin-processor", version.ref = "adk" }
 
 [plugins]

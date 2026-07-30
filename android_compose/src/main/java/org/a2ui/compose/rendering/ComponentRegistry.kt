@@ -177,7 +177,7 @@ class ComponentRegistry(private val renderer: A2UIRenderer) {
             val buttonModifier = Modifier.fillMaxWidth().semantics { role = Role.Button }
 
             val onClick: () -> Unit = {
-                component.action?.let { renderer.handleAction(context.surfaceId, it) }
+                component.action?.let { renderer.handleAction(context.surfaceId, it, context.scopePath) }
             }
 
             // 渲染按钮内容：优先通过 child 引用子组件，fallback 到 text

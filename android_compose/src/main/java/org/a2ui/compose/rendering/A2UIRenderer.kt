@@ -361,16 +361,34 @@ class A2UIRenderer(
         }
     }
 
-    fun handleAction(surfaceId: String, action: Action) {
-        logger.log(A2UILogLevel.INFO, "Handling action on surface: $surfaceId")
+    fun handleAction(surfaceId: String, action: Action, scopePath: String? = null) {
+        logger.log(A2UILogLevel.INFO, "Handling action on surface: $surfaceId (scope: $scopePath)")
         when {
             action.event != null -> {
                 logger.log(A2UILogLevel.DEBUG, "Action event: ${action.event.name}")
-                _actionHandler.value?.onAction(surfaceId, action.event.name, action.event.context ?: emptyMap())
+                val resolvedContext = resolveActionContext(surfaceId, action.event.context, scopePath)
+                _actionHandler.value?.onAction(surfaceId, action.event.name, resolvedContext)
             }
             action.functionCall != null -> {
                 logger.log(A2UILogLevel.DEBUG, "Action function: ${action.functionCall.call}")
                 handleLocalFunction(action.functionCall)
+            }
+        }
+    }
+
+    private fun resolveActionContext(surfaceId: String, context: Map<String, Any>?, scopePath: String?): Map<String, Any> {
+        if (context == null) return emptyMap()
+        return context.mapValues { (_, value) ->
+            when (value) {
+                is DynamicValue<*> -> resolveValueWithScope(surfaceId, value, scopePath) ?: value
+                is Map<*, *> -> {
+                    // Try to resolve if it looks like a PathValue
+                    val path = value["path"] as? String
+                    if (path != null) {
+                        resolveValueWithScope(surfaceId, DynamicValue.PathValue<Any>(path), scopePath) ?: value
+                    } else value
+                }
+                else -> value
             }
         }
     }

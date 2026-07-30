@@ -1,20 +1,21 @@
-package com.example.a2ui_sample.ui
+package com.example.a2ui_sample.presentation.a2ui
 
-import com.example.a2ui_sample.data.MenuItem
+import com.example.a2ui_sample.domain.model.MenuItem
 import com.google.gson.Gson
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 
 /**
  * MenuA2UIBuilder
- * Generates the A2UI schema and data for the menu section.
+ * Modular A2UI Builder that separates components for reusability.
+ * Fixes data visibility by ensuring correct paths for MenuItem properties.
  */
 class MenuA2UIBuilder {
     private val gson = Gson()
     private val surfaceId = "home_menu_surface"
 
     /**
-     * Creates the initial surface for the menu.
+     * Creates the initial surface.
      */
     fun createSurfaceJson(): String {
         val root = JsonObject()
@@ -27,7 +28,143 @@ class MenuA2UIBuilder {
     }
 
     /**
-     * Builds the component schema for the menu section.
+     * MODULAR COMPONENTS
+     */
+
+    private fun createImageComponent(): JsonObject {
+        val comp = JsonObject()
+        comp.addProperty("id", "food-image")
+        comp.addProperty("component", "Image")
+        val url = JsonObject()
+        url.addProperty("path", "image") // Maps to MenuItem.image
+        comp.add("url", url)
+        comp.addProperty("variant", "mediumFeature")
+        return comp
+    }
+
+    private fun createNameComponent(): JsonObject {
+        val comp = JsonObject()
+        comp.addProperty("id", "food-name")
+        comp.addProperty("component", "Text")
+        val text = JsonObject()
+        text.addProperty("path", "name") // Maps to MenuItem.name
+        comp.add("text", text)
+        comp.addProperty("variant", "h3")
+        return comp
+    }
+
+    private fun createCategoryComponent(): JsonObject {
+        val comp = JsonObject()
+        comp.addProperty("id", "food-category")
+        comp.addProperty("component", "Text")
+        val text = JsonObject()
+        text.addProperty("path", "category") // Maps to MenuItem.category
+        comp.add("text", text)
+        comp.addProperty("variant", "caption")
+        return comp
+    }
+
+    private fun createRatingComponent(): JsonObject {
+        val comp = JsonObject()
+        comp.addProperty("id", "food-rating")
+        comp.addProperty("component", "Text")
+        val text = JsonObject()
+        text.addProperty("path", "rating") // Maps to MenuItem.rating
+        comp.add("text", text)
+        comp.addProperty("variant", "body")
+        return comp
+    }
+
+    private fun createTimeRowComponent(): JsonObject {
+        val comp = JsonObject()
+        comp.addProperty("id", "food-time-row")
+        comp.addProperty("component", "Text")
+        val text = JsonObject()
+        text.addProperty("path", "prepTime") // Maps to MenuItem.prepTime
+        comp.add("text", text)
+        comp.addProperty("variant", "caption")
+        return comp
+    }
+
+    private fun createDescriptionComponent(): JsonObject {
+        val comp = JsonObject()
+        comp.addProperty("id", "food-description")
+        comp.addProperty("component", "Text")
+        val text = JsonObject()
+        text.addProperty("path", "description") // Maps to MenuItem.description
+        comp.add("text", text)
+        comp.addProperty("variant", "body")
+        return comp
+    }
+
+    private fun createPriceComponent(): JsonObject {
+        val comp = JsonObject()
+        comp.addProperty("id", "food-price")
+        comp.addProperty("component", "Text")
+        val text = JsonObject()
+        text.addProperty("path", "price") // Maps to MenuItem.price
+        comp.add("text", text)
+        comp.addProperty("variant", "h4")
+        return comp
+    }
+
+    private fun createAddButtonComponent(): JsonObject {
+        val comp = JsonObject()
+        comp.addProperty("id", "add-button")
+        comp.addProperty("component", "Button")
+        comp.addProperty("label", "Add To Cart")
+        
+        val action = JsonObject()
+        val event = JsonObject()
+        event.addProperty("name", "add_to_cart")
+        val context = JsonObject()
+        val itemId = JsonObject()
+        itemId.addProperty("path", "id") // Maps to MenuItem.id
+        context.add("itemId", itemId)
+        event.add("context", context)
+        action.add("event", event)
+        comp.add("action", action)
+        return comp
+    }
+
+    private fun createMenuCardComponent(): JsonObject {
+        val comp = JsonObject()
+        comp.addProperty("id", "menu-card")
+        comp.addProperty("component", "Card")
+        comp.addProperty("child", "menu-content")
+        return comp
+    }
+
+    private fun createMenuContentComponent(): JsonObject {
+        val comp = JsonObject()
+        comp.addProperty("id", "menu-content")
+        comp.addProperty("component", "Column")
+        val children = JsonArray()
+        children.add("food-image")
+        children.add("food-name")
+        children.add("food-category")
+        children.add("food-rating")
+        children.add("food-time-row")
+        children.add("food-description")
+        children.add("food-price")
+        children.add("add-button")
+        comp.add("children", children)
+        return comp
+    }
+
+    private fun createRootListComponent(): JsonObject {
+        val comp = JsonObject()
+        comp.addProperty("id", "root")
+        comp.addProperty("component", "Column")
+        val children = JsonObject()
+        children.addProperty("path", "/items")
+        children.addProperty("componentId", "menu-card")
+        comp.add("children", children)
+        return comp
+    }
+
+    /**
+     * Builds the full schema by combining modular components.
      */
     fun buildMenuSchema(): String {
         val root = JsonObject()
@@ -37,106 +174,17 @@ class MenuA2UIBuilder {
         update.addProperty("surfaceId", surfaceId)
         
         val components = JsonArray()
-
-        // 1. Menu List (Column with template children)
-        val menuList = JsonObject()
-        menuList.addProperty("id", "root")
-        menuList.addProperty("component", "Column")
-        val childrenObj = JsonObject()
-        childrenObj.addProperty("path", "/items")
-        childrenObj.addProperty("componentId", "menu-card")
-        menuList.add("children", childrenObj)
-        components.add(menuList)
-
-        // 2. Menu Card (Template)
-        val menuCard = JsonObject()
-        menuCard.addProperty("id", "menu-card")
-        menuCard.addProperty("component", "Card")
-        menuCard.addProperty("child", "menu-content")
-        components.add(menuCard)
-
-        // 3. Menu Content (Column)
-        val menuContent = JsonObject()
-        menuContent.addProperty("id", "menu-content")
-        menuContent.addProperty("component", "Column")
-        val contentChildren = JsonArray()
-        contentChildren.add("food-image")
-        contentChildren.add("food-name")
-        contentChildren.add("food-category")
-        contentChildren.add("food-description")
-        contentChildren.add("food-price")
-        contentChildren.add("add-button")
-        menuContent.add("children", contentChildren)
-        components.add(menuContent)
-
-        // 4. Food Image
-        val foodImage = JsonObject()
-        foodImage.addProperty("id", "food-image")
-        foodImage.addProperty("component", "Image")
-        val imgUrl = JsonObject()
-        imgUrl.addProperty("path", "image")
-        foodImage.add("url", imgUrl)
-        foodImage.addProperty("variant", "mediumFeature")
-        components.add(foodImage)
-
-        // 5. Food Name
-        val foodName = JsonObject()
-        foodName.addProperty("id", "food-name")
-        foodName.addProperty("component", "Text")
-        val namePath = JsonObject()
-        namePath.addProperty("path", "name")
-        foodName.add("text", namePath)
-        foodName.addProperty("variant", "h3")
-        components.add(foodName)
-
-        // 6. Food Category
-        val foodCategory = JsonObject()
-        foodCategory.addProperty("id", "food-category")
-        foodCategory.addProperty("component", "Text")
-        val catPath = JsonObject()
-        catPath.addProperty("path", "category")
-        foodCategory.add("text", catPath)
-        foodCategory.addProperty("variant", "caption")
-        components.add(foodCategory)
-
-        // 7. Food Description
-        val foodDescription = JsonObject()
-        foodDescription.addProperty("id", "food-description")
-        foodDescription.addProperty("component", "Text")
-        val descPath = JsonObject()
-        descPath.addProperty("path", "description")
-        foodDescription.add("text", descPath)
-        foodDescription.addProperty("variant", "body")
-        components.add(foodDescription)
-
-        // 8. Food Price
-        val foodPrice = JsonObject()
-        foodPrice.addProperty("id", "food-price")
-        foodPrice.addProperty("component", "Text")
-        val pricePath = JsonObject()
-        pricePath.addProperty("path", "price")
-        foodPrice.add("text", pricePath)
-        foodPrice.addProperty("variant", "h4")
-        components.add(foodPrice)
-
-        // 9. Add Button
-        val addButton = JsonObject()
-        addButton.addProperty("id", "add-button")
-        addButton.addProperty("component", "Button")
-        addButton.addProperty("label", "Add To Cart")
-        
-        val action = JsonObject()
-        val event = JsonObject()
-        event.addProperty("name", "add_to_cart")
-        val context = JsonObject()
-        val itemIdPath = JsonObject()
-        itemIdPath.addProperty("path", "id")
-        context.add("itemId", itemIdPath)
-        event.add("context", context)
-        action.add("event", event)
-        addButton.add("action", action)
-        
-        components.add(addButton)
+        components.add(createRootListComponent())
+        components.add(createMenuCardComponent())
+        components.add(createMenuContentComponent())
+        components.add(createImageComponent())
+        components.add(createNameComponent())
+        components.add(createCategoryComponent())
+        components.add(createRatingComponent())
+        components.add(createTimeRowComponent())
+        components.add(createDescriptionComponent())
+        components.add(createPriceComponent())
+        components.add(createAddButtonComponent())
 
         update.add("components", components)
         root.add("updateComponents", update)
@@ -145,7 +193,7 @@ class MenuA2UIBuilder {
     }
 
     /**
-     * Builds the data model update for the menu items.
+     * Updates the data model with the list of menu items.
      */
     fun buildMenuData(items: List<MenuItem>): String {
         val root = JsonObject()

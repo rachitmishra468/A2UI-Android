@@ -1,4 +1,4 @@
-package com.example.a2ui_sample.ui
+package com.example.a2ui_sample.presentation.a2ui
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -8,6 +8,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.example.a2ui_sample.presentation.viewmodel.RestaurantViewModel
 import org.a2ui.compose.rendering.ActionHandler
 
 /**
@@ -29,6 +30,7 @@ fun MenuA2UISection(viewModel: RestaurantViewModel) {
     // Update the data model when the menu items change in the ViewModel
     val items = viewModel.getMenuItems()
     LaunchedEffect(items) {
+        android.util.Log.d("A2UI_DEBUG", "Sending ${items.size} items to A2UI surface: $surfaceId")
         renderer.processMessage(builder.buildMenuData(items))
     }
 

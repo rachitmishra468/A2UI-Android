@@ -1,10 +1,10 @@
 package com.example.a2ui_sample.domain.usecases
 
-import com.example.a2ui_sample.data.AgentResponse
-import com.example.a2ui_sample.data.CartItem
-import com.example.a2ui_sample.data.MenuItem
-import com.example.a2ui_sample.data.MenuRepository
-import com.example.a2ui_sample.data.TableBooking
+import com.example.a2ui_sample.domain.model.AgentResponse
+import com.example.a2ui_sample.domain.model.CartItem
+import com.example.a2ui_sample.domain.model.MenuItem
+import com.example.a2ui_sample.data.repository.MenuRepository
+import com.example.a2ui_sample.domain.model.TableBooking
 
 /**
  * Domain use-case interfaces and simple implementations that wrap MenuRepository.
@@ -68,14 +68,14 @@ class CalculatePriceUseCaseImpl(private val repository: MenuRepository) : Calcul
 }
 
 interface CheckoutUseCase {
-    fun execute(customerId: String?): AgentResponse.Message
+    fun execute(customerId: String?): AgentResponse
 }
 
 class CheckoutUseCaseImpl(private val repository: MenuRepository) : CheckoutUseCase {
-    override fun execute(customerId: String?): AgentResponse.Message {
-        // For demo: create a simple message and do not persist orders
-        val total = repository.getCartTotal()
-        return AgentResponse.Message("Order placed successfully. Total ₹$total")
+    override fun execute(customerId: String?): AgentResponse {
+        val order = repository.placeOrder()
+            ?: return AgentResponse.Error("Your cart is empty. Add items before checking out.")
+        return AgentResponse.OrderPlaced(order)
     }
 }
 
