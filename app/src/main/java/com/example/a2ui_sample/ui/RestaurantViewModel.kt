@@ -13,14 +13,15 @@ import com.example.a2ui_sample.domain.usecases.ViewCartUseCaseImpl
 import com.example.a2ui_sample.domain.usecases.BookTableUseCaseImpl
 import com.example.a2ui_sample.domain.usecases.CalculatePriceUseCaseImpl
 import com.example.a2ui_sample.domain.usecases.CheckoutUseCaseImpl
-import com.example.a2ui_sample.data.repository.MenuRepository
+import com.example.a2ui_sample.data.repository.MenuRepositoryImpl
+import com.example.a2ui_sample.domain.repository.MenuRepository
 import kotlinx.coroutines.launch
 import org.a2ui.compose.rendering.A2UIRenderer
 import java.util.UUID
 import com.example.a2ui_sample.domain.model.MenuItem
 import com.example.a2ui_sample.domain.model.AgentResponse
 import com.example.a2ui_sample.agent.ADKRestaurantMasterAgent
-import com.example.a2ui_sample.agent.ADKRestaurantAgentTools
+import com.example.a2ui_sample.agent.OrchestratorTools
 
 
 data class UiMessage(
@@ -38,7 +39,7 @@ data class UiMessage(
  */
 class RestaurantViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val repository by lazy { MenuRepository.getInstance(application) }
+    private val repository: MenuRepository by lazy { MenuRepositoryImpl.getInstance(application) }
     private lateinit var adkMasterAgent: ADKRestaurantMasterAgent
 
     // Domain use-cases
@@ -86,7 +87,7 @@ class RestaurantViewModel(application: Application) : AndroidViewModel(applicati
                 if (!::adkMasterAgent.isInitialized) {
                     adkMasterAgent = ADKRestaurantMasterAgent(
                         repository,
-                        ADKRestaurantAgentTools(repository)
+                        OrchestratorTools()
                     )
                 }
 

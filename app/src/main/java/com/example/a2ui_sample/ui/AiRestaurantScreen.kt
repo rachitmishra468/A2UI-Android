@@ -10,295 +10,304 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Home
-import androidx.navigation.NavController
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import org.a2ui.compose.rendering.A2UIRenderer
-import org.a2ui.compose.rendering.ActionHandler
-import org.a2ui.compose.service.A2UISurface
-import org.a2ui.compose.service.A2UIRendererState
-import com.example.a2ui_sample.domain.model.MenuItem
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.navigation.NavController
 import com.example.a2ui_sample.presentation.viewmodel.RestaurantViewModel
 import com.example.a2ui_sample.presentation.viewmodel.UiMessage
-import com.example.a2ui_sample.presentation.theme.*
-import androidx.compose.ui.draw.clip
+import org.a2ui.compose.rendering.A2UIRenderer
+import org.a2ui.compose.rendering.ActionHandler
+import org.a2ui.compose.service.A2UIRendererState
+import org.a2ui.compose.service.A2UISurface
+
+private val WhatsAppBackground = Color(0xFFECE5DD)
+private val WhatsAppHeader = Color(0xFF075E54)
+private val OutgoingBubble = Color(0xFFDCF8C6)
+private val IncomingBubble = Color.White
+private val SendButton = Color(0xFF25D366)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AiRestaurantScreen(navController: NavController? = null, viewModel: RestaurantViewModel = viewModel()) {
+fun AiRestaurantScreen(
+    navController: NavController? = null,
+    viewModel: RestaurantViewModel = viewModel()
+) {
     val listState = rememberLazyListState()
-    
-    // Auto-scroll to bottom when new messages are added
+    var inputBarHeightPx by remember { mutableIntStateOf(0) }
+    val inputBarHeightDp = with(LocalDensity.current) { inputBarHeightPx.toDp() }
+
     LaunchedEffect(viewModel.uiMessages.size) {
         if (viewModel.uiMessages.isNotEmpty()) {
-            listState.animateScrollToItem(viewModel.uiMessages.size - 1)
+            listState.animateScrollToItem(viewModel.uiMessages.lastIndex)
         }
     }
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(BackgroundLight)
-            .navigationBarsPadding()
-            .imePadding()
+            .background(WhatsAppBackground)
     ) {
-        // Header
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            color = RestaurantPrimary,
-            shadowElevation = 6.dp
-        ) {
-            Row(
+        Column(modifier = Modifier.fillMaxSize()) {
+            ChatTopBar(
+                cartCount = viewModel.getCartItems().size,
+                onHomeClick = { navController?.navigate("home") },
+                onCartClick = { navController?.navigate("cart") },
+                onClearClick = viewModel::clearChat
+            )
+
+            LazyColumn(
+                state = listState,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    .weight(1f),
+                contentPadding = PaddingValues(
+                    start = 10.dp,
+                    end = 10.dp,
+                    top = 10.dp,
+                    bottom = inputBarHeightDp + 12.dp
+                ),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Text(
-                    "💬 AI Assistant",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(
-                        onClick = { navController?.navigate("home") },
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.Home,
-                            contentDescription = "Home",
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-
-                    Box(modifier = Modifier.size(40.dp)) {
-                        IconButton(
-                            onClick = { navController?.navigate("cart") },
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            Icon(
-                                Icons.Default.ShoppingCart,
-                                contentDescription = "Cart",
-                                tint = Color.White,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        val cartCount = viewModel.getCartItems().size
-                        if (cartCount > 0) {
-                            Box(
-                                modifier = Modifier
-                                    .align(Alignment.TopEnd)
-                                    .offset((-4).dp, 4.dp)
-                                    .background(RestaurantSecondary, RoundedCornerShape(50))
-                                    .size(18.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    cartCount.toString(),
-                                    color = Color.White,
-                                    fontSize = 9.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                    }
-
-                    IconButton(
-                        onClick = { viewModel.clearChat() },
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.Clear,
-                            contentDescription = "Clear Chat",
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
+                items(viewModel.uiMessages, key = { it.id }) { message ->
+                    MessageRow(message = message, viewModel = viewModel)
                 }
             }
         }
 
-        // Chat messages area
-        LazyColumn(
-            state = listState,
+        // Transparent IME container keeps background static and lifts only the input UI.
+        Box(
             modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 16.dp)
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .imePadding()
         ) {
-            items(viewModel.uiMessages, key = { it.id }) { message ->
-                ChatBubble(message, viewModel)
-            }
+            ChatInputBar(
+                modifier = Modifier.onSizeChanged { inputBarHeightPx = it.height },
+                onSendMessage = viewModel::sendMessage
+            )
         }
+    }
+}
 
-        // Input area
-        ChatInputSection(
-            onSendMessage = { query ->
-                viewModel.sendMessage(query)
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ChatTopBar(
+    cartCount: Int,
+    onHomeClick: () -> Unit,
+    onCartClick: () -> Unit,
+    onClearClick: () -> Unit
+) {
+    TopAppBar(
+        title = {
+            Text(
+                text = "AI Assistant",
+                color = Color.White,
+                fontWeight = FontWeight.SemiBold
+            )
+        },
+        actions = {
+            IconButton(onClick = onHomeClick) {
+                Icon(Icons.Default.Home, contentDescription = "Home", tint = Color.White)
             }
+            Box {
+                IconButton(onClick = onCartClick) {
+                    Icon(Icons.Default.ShoppingCart, contentDescription = "Cart", tint = Color.White)
+                }
+                if (cartCount > 0) {
+                    Surface(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .offset(x = (-2).dp, y = 2.dp),
+                        color = Color(0xFFFF3B30),
+                        shape = CircleShape
+                    ) {
+                        Text(
+                            text = cartCount.toString(),
+                            color = Color.White,
+                            fontSize = 10.sp,
+                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                        )
+                    }
+                }
+            }
+            IconButton(onClick = onClearClick) {
+                Icon(Icons.Default.Clear, contentDescription = "Clear", tint = Color.White)
+            }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = WhatsAppHeader,
+            titleContentColor = Color.White,
+            actionIconContentColor = Color.White
+        )
+    )
+}
+
+@Composable
+private fun MessageRow(message: UiMessage, viewModel: RestaurantViewModel) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = if (message.isFromAgent) Arrangement.Start else Arrangement.End
+    ) {
+        if (message.isA2UI) {
+            A2UIBubble(message = message, viewModel = viewModel)
+        } else {
+            TextBubble(message = message)
+        }
+    }
+}
+
+@Composable
+private fun A2UIBubble(message: UiMessage, viewModel: RestaurantViewModel) {
+    Card(
+        modifier = Modifier.fillMaxWidth(0.92f),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = IncomingBubble),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Box(modifier = Modifier.padding(8.dp)) {
+            val renderer = remember(message.id) { A2UIRenderer() }
+
+            LaunchedEffect(renderer) {
+                renderer.setActionHandler(createActionHandler(viewModel))
+            }
+
+            LaunchedEffect(message.id, message.a2uiPayloads) {
+                message.a2uiPayloads.forEach(renderer::processMessage)
+            }
+
+            A2UISurface(
+                surfaceId = "restaurant_surface",
+                rendererState = remember(renderer) { A2UIRendererState(renderer) },
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+}
+
+@Composable
+private fun TextBubble(message: UiMessage) {
+    val isAgent = message.isFromAgent
+    Surface(
+        modifier = Modifier.fillMaxWidth(0.86f),
+        color = if (isAgent) IncomingBubble else OutgoingBubble,
+        shape = RoundedCornerShape(
+            topStart = 14.dp,
+            topEnd = 14.dp,
+            bottomStart = if (isAgent) 4.dp else 14.dp,
+            bottomEnd = if (isAgent) 14.dp else 4.dp
+        ),
+        shadowElevation = 1.dp
+    ) {
+        Text(
+            text = message.content,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color(0xFF1F1F1F)
         )
     }
 }
 
-@Composable
-fun ChatBubble(message: UiMessage, viewModel: RestaurantViewModel) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = if (!message.isFromAgent) Alignment.End else Alignment.Start
-    ) {
-        if (message.isA2UI) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth(0.85f)
-                    .padding(vertical = 4.dp),
-                colors = CardDefaults.cardColors(containerColor = BackgroundCard),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                shape = RoundedCornerShape(
-                    topStart = 16.dp,
-                    topEnd = 16.dp,
-                    bottomStart = if (!message.isFromAgent) 16.dp else 0.dp,
-                    bottomEnd = if (!message.isFromAgent) 0.dp else 16.dp
-                )
-            ) {
-                Box(modifier = Modifier.padding(8.dp)) {
-                    val localRenderer = remember(message.id) { A2UIRenderer() }
+private fun createActionHandler(viewModel: RestaurantViewModel): ActionHandler {
+    return object : ActionHandler {
+        override fun onAction(surfaceId: String, actionName: String, context: Map<String, Any>) {
+            if (actionName != "addToCart" && actionName != "add_to_cart") return
+            val itemId = extractItemId(context) ?: return
+            viewModel.addItemToCartById(itemId)
+        }
 
-                    // Wire up "Add to Cart" (and other) button taps in this chat card to the ViewModel
-                    LaunchedEffect(localRenderer) {
-                        localRenderer.setActionHandler(object : ActionHandler {
-                            override fun onAction(surfaceId: String, actionName: String, context: Map<String, Any>) {
-                                if (actionName == "addToCart" || actionName == "add_to_cart") {
-                                    val itemId = when (val id = context["itemId"]) {
-                                        is Number -> id.toInt()
-                                        is String -> id.toIntOrNull()
-                                        else -> null
-                                    }
-                                    if (itemId != null) {
-                                        viewModel.addItemToCartById(itemId)
-                                    }
-                                }
-                            }
-                            override fun openUrl(url: String) {}
-                            override fun showToast(message: String) {}
-                        })
-                    }
+        override fun openUrl(url: String) {
+            // No-op: external URL opening is intentionally disabled for this screen.
+        }
 
-                    LaunchedEffect(message.a2uiPayloads, message.id) {
-                        message.a2uiPayloads.forEach { payload ->
-                            localRenderer.processMessage(payload)
-                        }
-                    }
-
-                    A2UISurface(
-                        surfaceId = "restaurant_surface",
-                        rendererState = remember(localRenderer) { A2UIRendererState(localRenderer) },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            }
-        } else {
-            Surface(
-                color = if (!message.isFromAgent) RestaurantSecondary else BackgroundCard,
-                shape = RoundedCornerShape(
-                    topStart = 16.dp,
-                    topEnd = 16.dp,
-                    bottomStart = if (!message.isFromAgent) 16.dp else 0.dp,
-                    bottomEnd = if (!message.isFromAgent) 0.dp else 16.dp
-                ),
-                modifier = Modifier.fillMaxWidth(0.85f),
-                shadowElevation = 2.dp
-            ) {
-                Text(
-                    text = message.content,
-                    modifier = Modifier
-                        .padding(12.dp)
-                        .fillMaxWidth(),
-                    color = if (!message.isFromAgent) Color.White else TextPrimary,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
+        override fun showToast(message: String) {
+            // No-op: toast behavior is intentionally delegated to app-level UX.
         }
     }
 }
 
+private fun extractItemId(context: Map<String, Any>): Int? {
+    val raw = context["itemId"] ?: return null
+    return when (raw) {
+        is Number -> raw.toInt()
+        is String -> raw.toIntOrNull()
+        else -> null
+    }
+}
+
 @Composable
-fun ChatInputSection(onSendMessage: (String) -> Unit) {
-    var text by remember { mutableStateOf("") }
+private fun ChatInputBar(
+    modifier: Modifier = Modifier,
+    onSendMessage: (String) -> Unit
+) {
+    var input by remember { mutableStateOf("") }
 
     Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = Color.White,
-        shadowElevation = 8.dp
+        modifier = modifier.fillMaxWidth(),
+        color = Color.Transparent,
+        tonalElevation = 0.dp
     ) {
         Row(
             modifier = Modifier
-                .padding(12.dp)
                 .fillMaxWidth()
-                .height(48.dp),
+                .padding(horizontal = 8.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            TextField(
-                value = text,
-                onValueChange = { text = it },
-                placeholder = {
-                    Text(
-                        "Try: 'Show veg items' or 'Book table'",
-                        color = TextHint,
-                        fontSize = 12.sp
+            Surface(
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(26.dp),
+                color = Color.White,
+                shadowElevation = 1.dp
+            ) {
+                TextField(
+                    value = input,
+                    onValueChange = { input = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 52.dp),
+                    placeholder = {
+                        Text("Type a message", color = Color(0xFF8E8E93), fontSize = 14.sp)
+                    },
+                    maxLines = 4,
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        disabledContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                        disabledIndicatorColor = Color.Transparent,
+                        cursorColor = WhatsAppHeader
                     )
-                },
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .clip(RoundedCornerShape(12.dp)),
-                colors = TextFieldDefaults.colors(
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                    focusedContainerColor = BackgroundGray,
-                    unfocusedContainerColor = BackgroundGray
-                ),
-                singleLine = true,
-                textStyle = MaterialTheme.typography.bodySmall
-            )
+                )
+            }
 
-            Button(
+            IconButton(
                 onClick = {
-                    if (text.isNotBlank()) {
-                        onSendMessage(text)
-                        text = ""
+                    val message = input.trim()
+                    if (message.isNotEmpty()) {
+                        onSendMessage(message)
+                        input = ""
                     }
                 },
                 modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape),
-                colors = ButtonDefaults.buttonColors(containerColor = RestaurantSecondary),
-                contentPadding = PaddingValues(0.dp)
+                    .size(48.dp)
+                    .background(SendButton, CircleShape)
             ) {
                 Icon(
-                    Icons.AutoMirrored.Filled.Send,
+                    imageVector = Icons.AutoMirrored.Filled.Send,
                     contentDescription = "Send",
-                    tint = Color.White,
-                    modifier = Modifier.size(20.dp)
+                    tint = Color.White
                 )
             }
         }

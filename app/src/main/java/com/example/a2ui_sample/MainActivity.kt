@@ -4,6 +4,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.EventSeat
@@ -73,6 +75,12 @@ class MainActivity : ComponentActivity() {
                 val currentRoute = backStackEntry?.destination
 
                 Scaffold(
+                    // IMPORTANT: exclude the IME (keyboard) inset from the Scaffold's own padding.
+                    // Otherwise NavHost's innerPadding already reserves the keyboard height, and any
+                    // screen (e.g. AiRestaurantScreen) that also calls imePadding() would double it,
+                    // causing the input bar to "jump" too high with a white gap above the keyboard.
+                    // Individual screens are responsible for handling their own imePadding() exactly once.
+
                     bottomBar = {
                         NavigationBar(containerColor = RestaurantPrimary) {
                             bottomNavItems.forEach { item ->

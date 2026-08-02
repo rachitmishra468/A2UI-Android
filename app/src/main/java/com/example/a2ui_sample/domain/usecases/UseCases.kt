@@ -3,7 +3,7 @@ package com.example.a2ui_sample.domain.usecases
 import com.example.a2ui_sample.domain.model.AgentResponse
 import com.example.a2ui_sample.domain.model.CartItem
 import com.example.a2ui_sample.domain.model.MenuItem
-import com.example.a2ui_sample.data.repository.MenuRepository
+import com.example.a2ui_sample.domain.repository.MenuRepository
 import com.example.a2ui_sample.domain.model.TableBooking
 
 /**
