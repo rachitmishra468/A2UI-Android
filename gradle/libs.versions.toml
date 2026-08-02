@@ -17,7 +17,12 @@ a2ui = "0.6.0"
 generativeai = "0.9.0"
 genai = "0.2.0"
 kotlinxSerialization = "1.7.3"
-room = "2.6.1"
+room = "2.8.4"
+hilt = "2.60.1"
+hiltNavigationCompose = "1.4.0"
+
+mockito = "5.11.0"
+mockitoKotlin = "5.2.1"
 
 [libraries]
 google-adk = { group = "com.google.adk", name = "google-adk-kotlin-core-android", version.ref = "adk" }
@@ -49,6 +54,11 @@ androidx-room-runtime = { group = "androidx.room", name = "room-runtime", versio
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 google-adk-ksp = { group = "com.google.adk", name = "google-adk-kotlin-processor", version.ref = "adk" }
+mockito-core = { group = "org.mockito", name = "mockito-core", version.ref = "mockito" }
+mockito-kotlin = { group = "org.mockito.kotlin", name = "mockito-kotlin", version.ref = "mockitoKotlin" }
+hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
+hilt-compiler = { group = "com.google.dagger", name = "hilt-compiler", version.ref = "hilt" }
+androidx-hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version.ref = "hiltNavigationCompose" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
@@ -57,3 +67,4 @@ kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }

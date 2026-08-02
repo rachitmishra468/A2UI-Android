@@ -1,25 +1,17 @@
 package com.example.a2ui_sample.domain.usecases
 
-import com.example.a2ui_sample.domain.model.AgentResponse
-import com.example.a2ui_sample.domain.model.CartItem
-import com.example.a2ui_sample.domain.model.MenuItem
+import com.example.a2ui_sample.domain.model.*
 import com.example.a2ui_sample.domain.repository.MenuRepository
-import com.example.a2ui_sample.domain.model.TableBooking
-
-/**
- * Domain use-case interfaces and simple implementations that wrap MenuRepository.
- * These implement the core business logic so both manual UI and agents reuse them.
- */
+import com.example.a2ui_sample.domain.valueobjects.OrderId
+import com.example.a2ui_sample.domain.valueobjects.Price
 
 interface SearchMenuUseCase {
-    fun execute(query: String?, category: String?, type: String?, maxPrice: Int?): List<MenuItem>
+    fun execute(query: String? = null, category: String? = null, type: String? = null, maxPrice: Int? = null): List<MenuItem>
 }
 
 class SearchMenuUseCaseImpl(private val repository: MenuRepository) : SearchMenuUseCase {
     override fun execute(query: String?, category: String?, type: String?, maxPrice: Int?): List<MenuItem> {
-        // We use category as primary filter; if query present and category null, use query as category/name
-        val cat = category ?: query
-        return repository.searchMenu(cat, type, maxPrice)
+        return repository.searchMenu(category ?: query, type, maxPrice)
     }
 }
 
@@ -29,9 +21,8 @@ interface AddToCartUseCase {
 
 class AddToCartUseCaseImpl(private val repository: MenuRepository) : AddToCartUseCase {
     override fun execute(menuItemId: Int): AgentResponse.CartUpdate? {
-        val added = repository.addToCart(menuItemId) ?: return null
-        val totalCount = repository.getCart().sumOf { it.quantity }
-        return AgentResponse.CartUpdate(addedItem = added.menuItem, totalCount = totalCount)
+        val cartItem = repository.addToCart(menuItemId) ?: return null
+        return AgentResponse.CartUpdate(cartItem.menuItem, repository.getCartTotal())
     }
 }
 
@@ -41,19 +32,17 @@ interface ViewCartUseCase {
 
 class ViewCartUseCaseImpl(private val repository: MenuRepository) : ViewCartUseCase {
     override fun execute(): AgentResponse.CartView {
-        val items = repository.getCart()
-        val total = repository.getCartTotal()
-        return AgentResponse.CartView(items, total)
+        return AgentResponse.CartView(repository.getCart(), repository.getCartTotal())
     }
 }
 
 interface BookTableUseCase {
-    fun execute(numberOfPeople: Int, bookingTime: String): AgentResponse.BookingConfirmation
+    fun execute(numberOfPeople: Int, date: String, time: String): AgentResponse.BookingConfirmation
 }
 
 class BookTableUseCaseImpl(private val repository: MenuRepository) : BookTableUseCase {
-    override fun execute(numberOfPeople: Int, bookingTime: String): AgentResponse.BookingConfirmation {
-        val booking = TableBooking(numberOfPeople = numberOfPeople, bookingTime = bookingTime)
+    override fun execute(numberOfPeople: Int, date: String, time: String): AgentResponse.BookingConfirmation {
+        val booking = TableBooking(numberOfPeople = numberOfPeople, bookingDate = date, bookingTime = time)
         repository.addBooking(booking)
         return AgentResponse.BookingConfirmation(booking)
     }
@@ -68,14 +57,27 @@ class CalculatePriceUseCaseImpl(private val repository: MenuRepository) : Calcul
 }
 
 interface CheckoutUseCase {
-    fun execute(customerId: String?): AgentResponse
+    fun execute(): AgentResponse
 }
 
 class CheckoutUseCaseImpl(private val repository: MenuRepository) : CheckoutUseCase {
-    override fun execute(customerId: String?): AgentResponse {
-        val order = repository.placeOrder()
-            ?: return AgentResponse.Error("Your cart is empty. Add items before checking out.")
-        return AgentResponse.OrderPlaced(order)
+    override fun execute(): AgentResponse {
+        val cartItems = repository.getCart()
+        if (cartItems.isEmpty()) return AgentResponse.Error("Cart is empty")
+        
+        val subtotal = repository.getCartTotal()
+        val tax = (subtotal * 0.05).toInt()
+        val total = subtotal + tax
+        
+        val order = Order(
+            id = OrderId("ORD-${System.currentTimeMillis() % 10000}"),
+            items = cartItems.map { OrderItem(it.menuItem.id, it.menuItem.name, it.quantity, it.menuItem.price) },
+            subtotal = Price(subtotal),
+            tax = Price(tax),
+            totalAmount = Price(total)
+        )
+        
+        repository.placeOrder(order)
+        return AgentResponse.OrderConfirmation(order)
     }
 }
-

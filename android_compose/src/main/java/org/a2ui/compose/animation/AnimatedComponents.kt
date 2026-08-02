@@ -25,6 +25,7 @@ fun AnimatedCard(
 
     AnimatedVisibility(
         visible = visible,
+        modifier = modifier,
         enter = if (themeConfig.enableAnimations) {
             createCardEnterTransition(themeConfig)
         } else {
@@ -37,7 +38,8 @@ fun AnimatedCard(
         }
     ) {
         Card(
-            modifier = modifier
+            modifier = Modifier
+                .fillMaxSize()
                 .glassmorphism(themeConfig, cardShape)
                 .then(
                     if (themeConfig.enableAnimations) {

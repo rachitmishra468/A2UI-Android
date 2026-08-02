@@ -7,7 +7,7 @@ import com.google.adk.kt.sessions.Session
 import kotlinx.coroutines.runBlocking
 import kotlin.time.ExperimentalTime
 
-private const val TAG = "ADK_AGENT"
+private const val TAG = "A2UI_FLOW"
 
 @OptIn(ExperimentalTime::class)
 class MasterAgentTools(
@@ -42,17 +42,17 @@ class MasterAgentTools(
     )
     fun delegateMenu(query: String? = null): String {
         val effectiveQuery = getEffectiveQuery(query)
-        Log.i(TAG, "🔴 TOOL CALLED: delegate_to_menu_agent (query: $effectiveQuery)")
+        Log.d(TAG, "5a. TOOL CALLED: delegate_to_menu_agent (query: $effectiveQuery)")
         return try {
             val result = runBlocking {
-                Log.d(TAG, "   Calling MenuAgent.process()...")
+                Log.d(TAG, "5b. Calling MenuAgent.process()...")
                 menuAgent.process(effectiveQuery, session)
             }
-            Log.d(TAG, "   ✅ MenuAgent returned: ${result.javaClass.simpleName}")
+            Log.d(TAG, "5c. MenuAgent returned: ${result.javaClass.simpleName}")
             lastResp = result
             "SUCCESS: Results retrieved from Menu Specialist. Task complete."
         } catch (e: Exception) {
-            Log.e(TAG, "   ❌ Menu delegation error: ${e.message}", e)
+            Log.e(TAG, "5c. Menu delegation error: ${e.message}")
             lastResp = AgentResponse.Error("Failed to get menu: ${e.message}")
             "ERROR: ${e.message}"
         }

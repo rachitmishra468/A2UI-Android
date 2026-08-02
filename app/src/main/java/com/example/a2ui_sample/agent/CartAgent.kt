@@ -1,100 +1,108 @@
 package com.example.a2ui_sample.agent
 
 import android.util.Log
-import com.example.a2ui_sample.domain.model.AgentResponse
+import com.example.a2ui_sample.domain.model.*
 import com.example.a2ui_sample.domain.repository.MenuRepository
+import com.example.a2ui_sample.domain.valueobjects.OrderId
+import com.example.a2ui_sample.domain.valueobjects.Price
+import com.google.adk.kt.agents.Instruction
 import com.google.adk.kt.agents.InvocationContext
 import com.google.adk.kt.agents.LlmAgent
 import com.google.adk.kt.models.Gemini
 import com.google.adk.kt.sessions.Session
 import com.google.adk.kt.types.Content
 import com.google.adk.kt.types.Role
-import com.google.adk.kt.agents.Instruction
-import com.google.adk.kt.annotations.Tool
 import kotlin.time.ExperimentalTime
 
-private const val TAG = "ADK_AGENT"
+private const val TAG = "CART_AGENT"
 
-class CartAgent(private val repository: MenuRepository, private val model: Gemini) {
+class CartAgent(
+    private val repository: MenuRepository,
+    private val model: Gemini
+) {
     private val tools = CartAgentTools(repository)
 
     @OptIn(ExperimentalTime::class)
-    private val adkAgent = LlmAgent(
-        name = "CartAgent",
-        model = model,
-        instruction = Instruction(
-            """
-            You are a Cart Assistant.
-            
-            RULES (must follow exactly):
-            1) If the user wants to add an item (contains add, order, buy, put), ALWAYS call add_to_cart(itemName="...").
-               - Extract the item name and normalize to Title Case.
-               - Do NOT call view_cart for add intents.
-            2) If the user wants to see their cart, call view_cart().
-            3) If the user wants to checkout or place order, call checkout().
-            
-            Example:
-              User: "add pizza" -> add_to_cart(itemName="Pizza")
-            """.trimIndent()
-        ),
-        tools = tools.generatedTools(),
-        maxSteps = 1
-    )
+    private val adkAgent: LlmAgent by lazy {
+        LlmAgent(
+            name = "CartAgent",
+            model = model,
+            instruction = Instruction(
+                """
+                You manage the shopping cart. 
+                - Add items by name.
+                - Show the cart contents.
+                - Handle checkout.
+                """.trimIndent()
+            ),
+            tools = emptyList(),
+            maxSteps = 2
+        )
+    }
 
     @OptIn(ExperimentalTime::class)
     suspend fun process(query: String, session: Session): AgentResponse {
-        Log.d(TAG, ">>> CartAgent Processing: $query")
+        Log.d(TAG, "Cart processing: $query")
         tools.reset()
+
         val context = InvocationContext(
             session = session,
             agent = adkAgent,
             userContent = Content.fromText(Role.USER, query)
         )
-        try { 
-            adkAgent.runAsync(context).collect { event ->
-                Log.v(TAG, "Cart Event: ${event.author}: ${event.content?.parts?.firstOrNull()?.text}")
+
+        var finalMessage = ""
+        adkAgent.runAsync(context).collect { event ->
+            val text = event.content?.parts?.firstOrNull()?.text
+            if (!text.isNullOrBlank() && event.author == "CartAgent") {
+                finalMessage = text
             }
-        } catch (e: Exception) { 
-            Log.e(TAG, "Cart Error: ${e.message}")
-            return AgentResponse.Error("Cart Error: ${e.message}")
         }
-        val response = tools.getLastResponse()
-        Log.d(TAG, "<<< CartAgent Response: ${response?.javaClass?.simpleName}")
-        return response ?: AgentResponse.Message("Cart operation failed.")
+
+        return tools.getLastResponse() ?: AgentResponse.Message(finalMessage)
     }
 }
 
 class CartAgentTools(private val repository: MenuRepository) {
     private var lastResp: AgentResponse? = null
-    fun getLastResponse() = lastResp
+
+    fun getLastResponse(): AgentResponse? = lastResp
     fun reset() { lastResp = null }
 
-    @Tool(name = "add_to_cart", description = "Add item by name")
     fun addToCart(itemName: String): String {
-        Log.d(TAG, "Tool: add_to_cart called for: $itemName")
-        val item = repository.getMenuItems().firstOrNull { it.name.contains(itemName, ignoreCase = true) }
-        return if (item != null) {
-            repository.addToCart(item.id)
-            lastResp = AgentResponse.CartUpdate(item, repository.getCart().size)
-            "Added ${item.name}"
-        } else {
-            Log.w(TAG, "Tool: add_to_cart FAILED - Item not found: $itemName")
-            "Not found"
-        }
+        val menu = repository.getMenuItems()
+        val item = menu.find { it.name.contains(itemName, ignoreCase = true) }
+            ?: return "I couldn't find '$itemName' in our menu."
+        
+        repository.addToCart(item.id)
+        lastResp = AgentResponse.CartUpdate(item, repository.getCart().sumOf { it.quantity })
+        return "Added ${item.name} to your cart."
     }
 
-    @Tool(name = "view_cart", description = "Show cart items")
     fun viewCart(): String {
-        Log.d(TAG, "Tool: view_cart called")
-        lastResp = AgentResponse.CartView(repository.getCart(), repository.getCartTotal())
-        return "Showed cart"
+        val cartItems = repository.getCart()
+        lastResp = AgentResponse.CartView(cartItems, repository.getCartTotal())
+        return "Here is your cart with ${cartItems.size} items."
     }
 
-    @Tool(name = "checkout", description = "Place order")
     fun checkout(): String {
-        Log.d(TAG, "Tool: checkout called")
-        val order = repository.placeOrder()
-        lastResp = if (order != null) AgentResponse.OrderPlaced(order) else AgentResponse.Error("Cart empty")
-        return "Checkout attempted"
+        val cartItems = repository.getCart()
+        if (cartItems.isEmpty()) return "Your cart is empty."
+        
+        val subtotal = repository.getCartTotal()
+        val tax = (subtotal * 0.05).toInt()
+        val total = subtotal + tax
+        
+        val order = Order(
+            id = OrderId("ORD-${System.currentTimeMillis() % 10000}"),
+            items = cartItems.map { OrderItem(it.menuItem.id, it.menuItem.name, it.quantity, it.menuItem.price) },
+            subtotal = Price(subtotal),
+            tax = Price(tax),
+            totalAmount = Price(total)
+        )
+        
+        repository.placeOrder(order)
+        lastResp = AgentResponse.OrderConfirmation(order)
+        return "Order placed successfully. ID: ${order.id.value}"
     }
 }

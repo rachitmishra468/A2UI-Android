@@ -14,7 +14,7 @@ import com.google.adk.kt.types.Role
 import com.google.adk.kt.agents.Instruction
 import kotlin.time.ExperimentalTime
 
-private const val TAG = "ADK_AGENT"
+private const val TAG = "A2UI_FLOW"
 
 /**
  * Master Agent that delegates to specialized agents.
@@ -25,8 +25,26 @@ class ADKRestaurantMasterAgent(
     private val orchestratorTools: OrchestratorTools
 ) {
     private val responseBuilder by lazy { A2UIResponseBuilder() }
-    private val apiKey = BuildConfig.GEMINI_API_KEY
-    private val geminiModel by lazy { Gemini("gemini-3.6-flash", apiKey) }
+    // Diagnostic: log whether API key is present (do not print full key)
+    private val apiKey = BuildConfig.GEMINI_API_KEY.also { key ->
+        try {
+            Log.d(TAG, "GEMINI_API_KEY present: ${""}" + (!key.isNullOrBlank()).toString())
+        } catch (t: Throwable) {
+            Log.w(TAG, "GEMINI_API_KEY diagnostic failed: ${""}" + (t.message ?: "<none>"))
+        }
+    }
+
+    // Wrap Gemini model creation with diagnostic logs so failures surface clearly
+    private val geminiModel by lazy {
+        try {
+            val model = Gemini("gemini-3.6-flash", apiKey)
+            Log.d(TAG, "Gemini model created successfully")
+            model
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to create Gemini model: ${""}" + (e.message ?: "<no message>"), e)
+            throw e
+        }
+    }
     
     private val menuAgent by lazy { MenuAgent(menuRepository, geminiModel) }
     private val cartAgent by lazy { CartAgent(menuRepository, geminiModel) }
@@ -55,18 +73,21 @@ class ADKRestaurantMasterAgent(
             model = geminiModel,
             instruction = Instruction(
                 """
-                You are a strict Routing Agent for a Restaurant. 
-                Your ONLY purpose is to delegate requests to the correct specialist.
+                You are a premium Restaurant Concierge and Ordering Assistant. 
+                Your job is to provide a seamless, high-end experience for Luxe Dining customers.
+                
+                You have three specialist agents at your disposal:
+                1. Menu Specialist: For browsing, searching, and recommending dishes.
+                2. Cart Specialist: For managing the shopping cart, updating quantities, and checking out.
+                3. Booking Specialist: For reserving tables and checking availability.
                 
                 CRITICAL - CONTEXT DETECTION:
-                1. If the user provides a NUMBER (e.g. "4", "for 5", "two people"), a TIME (e.g. "8 PM", "tomorrow at 7"), or answers a question about booking, ALWAYS use 'delegate_to_booking_agent'.
-                2. If the user mentions food, cravings, ingredients, or "menu", use 'delegate_to_menu_agent'.
-                3. If the user mentions "cart", "add", "order", "checkout", or "buy", use 'delegate_to_cart_agent'.
+                - If the user provides details for a booking (people, time), use 'delegate_to_booking_agent'.
+                - If the user wants to add items, view their cart, or pay, use 'delegate_to_cart_agent'.
+                - If the user wants to see the menu, wants recommendations, or has food questions, use 'delegate_to_menu_agent'.
                 
-                RULES:
-                - Always return exactly one tool invocation.
-                - Do NOT respond in plain text.
-                - Just call the tool and pass the user's input.
+                TONE:
+                Professional, helpful, and sophisticated.
                 """.trimIndent()
             ),
             tools = tools,
@@ -76,7 +97,22 @@ class ADKRestaurantMasterAgent(
 
     @OptIn(ExperimentalTime::class)
     suspend fun processQuery(userMessage: String): List<String> {
-        Log.d(TAG, "======== MasterAgent Reasoning START: '$userMessage' ========")
+        Log.d(TAG, "1. MasterAgent START: '$userMessage'")
+        // Diagnostic: attempt to access some lazy fields to surface initialization errors early
+        try {
+            // Accessing sessionKey and geminiModel here will log creation diagnostics (if any)
+            val sk = sessionKey.toString()
+            Log.d(TAG, "2. SessionKey initialized: $sk")
+        } catch (t: Throwable) {
+            Log.w(TAG, "2. SessionKey diagnostic failed: ${t.message}")
+        }
+        try {
+            // This will force Gemini model creation and log success/failure above
+            geminiModel.hashCode()
+            Log.d(TAG, "3. Gemini model initialized")
+        } catch (t: Throwable) {
+            Log.e(TAG, "3. Gemini model initialization failed: ${t.message}")
+        }
         orchestratorTools.reset()
         masterTools.reset()
         masterTools.setUserQuery(userMessage)
@@ -113,11 +149,11 @@ class ADKRestaurantMasterAgent(
         }
 
         // 4. Menu / Food Search Short-Circuit
-        val menuIntent = Regex("\\b(show|view|get|list|search|find|want|crave|need)\\b", RegexOption.IGNORE_CASE)
-        val commonFoodItems = Regex("\\b(burger|pizza|dosa|idli|paneer|veg|chicken|meal|drink|beverage|spicy|dessert)\\b", RegexOption.IGNORE_CASE)
+        val menuIntent = Regex("\\b(show|view|get|list|search|find|want|crave|need|menu|food|order|eat)\\b", RegexOption.IGNORE_CASE)
+        val commonFoodItems = Regex("\\b(burger|pizza|dosa|idli|paneer|veg|chicken|meal|drink|beverage|spicy|dessert|item)\\b", RegexOption.IGNORE_CASE)
         
-        if (menuIntent.containsMatchIn(q) || commonFoodItems.containsMatchIn(q) || q.contains("what can i order") || q.contains("menu items")) {
-            Log.i(TAG, "   >> Routing to MENU: Menu/Food intent detected.")
+        if (menuIntent.containsMatchIn(q) || commonFoodItems.containsMatchIn(q) || q.contains("order") || q.contains("menu")) {
+            Log.d(TAG, "   >> Routing to MENU: Menu/Food intent detected (Short-circuit).")
             masterTools.delegateMenu(userMessage)
             masterTools.getLastResponse()?.let { return responseBuilder.build(it) }
         }
@@ -156,7 +192,7 @@ class ADKRestaurantMasterAgent(
             else -> AgentResponse.Message("I'm sorry, I couldn't process that request.")
         }
 
-        Log.d(TAG, "======== MasterAgent Reasoning END. Result: ${finalResponse.javaClass.simpleName} ========")
+        Log.d(TAG, "4. MasterAgent END. Result: ${finalResponse.javaClass.simpleName}")
         return responseBuilder.build(finalResponse)
     }
 }

@@ -3,6 +3,7 @@ package com.example.a2ui_sample.data.repository
 import android.content.Context
 import com.example.a2ui_sample.domain.model.*
 import com.example.a2ui_sample.domain.repository.MenuRepository
+import com.example.a2ui_sample.domain.valueobjects.OrderStatus
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 
@@ -40,8 +41,8 @@ class MenuRepositoryImpl private constructor(private val context: Context) : Men
     override fun searchMenu(category: String?, type: String?, maxPrice: Int?): List<MenuItem> {
         return getMenuItems().filter { item ->
             val matchesCategory = category == null || item.category.contains(category, ignoreCase = true) || item.name.contains(category, ignoreCase = true)
-            val matchesType = type == null || item.type.equals(type, ignoreCase = true)
-            val matchesPrice = maxPrice == null || item.price <= maxPrice
+            val matchesType = type == null || item.type.name.equals(type, ignoreCase = true)
+            val matchesPrice = maxPrice == null || item.price.amount <= maxPrice
             matchesCategory && matchesType && matchesPrice
         }
     }
@@ -51,8 +52,6 @@ class MenuRepositoryImpl private constructor(private val context: Context) : Men
         val existing = cart.find { it.menuItem.id == menuItemId }
         return if (existing != null) {
             existing.quantity++
-            cart.remove(existing)
-            cart.add(0, existing)
             existing
         } else {
             val newCartItem = CartItem(item, 1)
@@ -63,10 +62,10 @@ class MenuRepositoryImpl private constructor(private val context: Context) : Men
 
     override fun getCart(): List<CartItem> = cart
 
-    override fun getCartTotal(): Int = cart.sumOf { it.menuItem.price * it.quantity }
+    override fun getCartTotal(): Int = cart.sumOf { (it.menuItem.price.amount * it.quantity) }
 
     override fun addBooking(booking: TableBooking) {
-        bookings.add(booking)
+        bookings.add(0, booking)
     }
 
     override fun getBookings(): List<TableBooking> = bookings.toList()
@@ -86,17 +85,14 @@ class MenuRepositoryImpl private constructor(private val context: Context) : Men
         return cart.remove(existing)
     }
 
-    override fun placeOrder(): Order? {
-        if (cart.isEmpty()) return null
-        val orderItems = cart.map { OrderItem(it.menuItem, it.quantity) }
-        val order = Order(
-            items = orderItems,
-            totalAmount = getCartTotal(),
-            status = OrderStatus.PREPARING
-        )
-        orders.add(0, order)
+    override fun clearCart() {
         cart.clear()
-        return order
+    }
+
+    override fun placeOrder(order: Order): Boolean {
+        orders.add(0, order)
+        clearCart()
+        return true
     }
 
     override fun getCurrentOrders(): List<Order> = orders.filter { it.status != OrderStatus.COMPLETED }
@@ -104,7 +100,7 @@ class MenuRepositoryImpl private constructor(private val context: Context) : Men
     override fun getPastOrders(): List<Order> = orders.filter { it.status == OrderStatus.COMPLETED }
 
     override fun completeOrder(orderId: String) {
-        val index = orders.indexOfFirst { it.orderId == orderId }
+        val index = orders.indexOfFirst { it.id.value == orderId }
         if (index != -1) {
             orders[index] = orders[index].copy(status = OrderStatus.COMPLETED)
         }
