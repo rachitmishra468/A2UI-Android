@@ -10,6 +10,8 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -682,6 +684,8 @@ class ComponentRegistry(private val renderer: A2UIRenderer) {
 
         // ==================== List ====================
         // v0.9: children (array or template), direction (vertical/horizontal)
+        // Fix: Use Column/Row instead of LazyColumn/LazyRow to avoid IllegalStateException 
+        // when nested inside other scrollable containers (like ChatScreen's LazyColumn).
         register("List") { component, context ->
             val isHorizontal = component.direction == "horizontal"
 
@@ -692,13 +696,15 @@ class ComponentRegistry(private val renderer: A2UIRenderer) {
                     val templateId = children.objectChild.componentId
 
                     if (isHorizontal) {
-                        LazyRow(
-                            modifier = Modifier.fillMaxWidth(),
-                            contentPadding = PaddingValues(8.dp),
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(8.dp)
+                                .horizontalScroll(rememberScrollState()),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             dataItems?.let { items ->
-                                itemsIndexed(items, key = { index, _ -> index }) { index, _ ->
+                                items.forEachIndexed { index, _ ->
                                     renderer.getComponent(context.surfaceId, templateId)?.let { template ->
                                         // ✅ Collection Scope: 传递 scopePath
                                         val itemScope = "$dataPath/$index"
@@ -711,13 +717,12 @@ class ComponentRegistry(private val renderer: A2UIRenderer) {
                             }
                         }
                     } else {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxWidth(),
-                            contentPadding = PaddingValues(8.dp),
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(8.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             dataItems?.let { items ->
-                                itemsIndexed(items, key = { index, _ -> index }) { index, _ ->
+                                items.forEachIndexed { index, _ ->
                                     renderer.getComponent(context.surfaceId, templateId)?.let { template ->
                                         val itemScope = "$dataPath/$index"
                                         render(template, context.copy(
@@ -732,18 +737,23 @@ class ComponentRegistry(private val renderer: A2UIRenderer) {
                 }
                 is ChildList.ArrayChildList -> {
                     if (isHorizontal) {
-                        LazyRow(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(8.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            itemsIndexed(children.array, key = { _, id -> id }) { _, childId ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(8.dp)
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            children.array.forEach { childId ->
                                 renderer.resolveComponentForRender(context.surfaceId, childId, component.id)?.let {
                                     render(it, context.copy(renderDepth = context.renderDepth + 1))
                                 }
                             }
                         }
                     } else {
-                        LazyColumn(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(8.dp),
+                        Column(modifier = Modifier.fillMaxWidth().padding(8.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            itemsIndexed(children.array, key = { _, id -> id }) { _, childId ->
+                            children.array.forEach { childId ->
                                 renderer.resolveComponentForRender(context.surfaceId, childId, component.id)?.let {
                                     render(it, context.copy(renderDepth = context.renderDepth + 1))
                                 }

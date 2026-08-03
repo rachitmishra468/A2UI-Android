@@ -7,247 +7,441 @@ import com.google.gson.JsonObject
 
 /**
  * A2UIResponseBuilder
- * Converts structured AgentResponse into A2UI JSON protocol.
- * Refactored to follow the structure provided by the user for better per-bubble rendering.
+ * Converts AgentResponse into A2UI Protocol JSON.
+ * Refactored to align with MenuA2UIBuilder modular architecture.
  */
 class A2UIResponseBuilder {
     private val gson = Gson()
-    private val surfaceId = "restaurant_surface"
 
     fun build(response: AgentResponse): List<String> {
+        val uniqueId = "surf_${System.currentTimeMillis()}_${(0..999).random()}"
         val messages = mutableListOf<String>()
-        
-        // 1. Ensure surface exists for every response bundle.
-        messages.add(createSurfaceJson())
 
-        // 2. Build the UI components based on the response type
-        val updateJson = when (response) {
-            is AgentResponse.MenuResults -> buildMenuResults(response.items, response.message)
-            is AgentResponse.Recommendations -> buildMenuResults(response.items, "Recommendations")
-            is AgentResponse.CartUpdate -> buildMessage("🛒 ${response.item.name} added to cart. You have ${response.totalCount} items.")
-            is AgentResponse.CartView -> buildCartView(response.items, response.totalAmount)
-            is AgentResponse.BookingConfirmation -> buildBookingConfirmation(response.booking)
-            is AgentResponse.OrderConfirmation -> buildMessage("Order confirmed! ID: ${response.order.id.value}. Total: ₹${response.order.totalAmount.amount}")
-            is AgentResponse.Error -> buildMessage("Error: ${response.message}")
-            is AgentResponse.Message -> buildMessage(response.message)
-            else -> buildMessage(response.toString())
+        // 1. Initial Surface Creation
+        messages.add(createSurfaceJson(uniqueId))
+
+        // 2. Build UI and Data based on response type
+        when (response) {
+            is AgentResponse.MenuResults -> {
+                messages.add(buildMenuSchema(uniqueId, response.message))
+                messages.add(buildMenuData(uniqueId, response.items))
+            }
+            is AgentResponse.Recommendations -> {
+                messages.add(buildMenuSchema(uniqueId, "Recommendations for you"))
+                messages.add(buildMenuData(uniqueId, response.items))
+            }
+            is AgentResponse.CartUpdate -> {
+                messages.add(buildCartUpdateSchema(uniqueId, response.item, response.totalCount))
+            }
+            is AgentResponse.CartView -> {
+                messages.add(buildCartViewSchema(uniqueId, response.totalAmount))
+                messages.add(buildCartData(uniqueId, response.items))
+            }
+            is AgentResponse.BookingConfirmation -> {
+                messages.add(buildBookingConfirmationSchema(uniqueId, response.booking))
+            }
+            is AgentResponse.OrderConfirmation -> {
+                messages.add(buildSimpleMessage(uniqueId, "Order confirmed! ID: ${response.order.id.value}. Total: ₹${response.order.totalAmount.amount}"))
+            }
+            is AgentResponse.Error -> {
+                messages.add(buildSimpleMessage(uniqueId, "Error: ${response.message}"))
+            }
+            is AgentResponse.Message -> {
+                messages.add(buildSimpleMessage(uniqueId, response.message))
+            }
+            else -> {
+                messages.add(buildSimpleMessage(uniqueId, response.toString()))
+            }
         }
-        messages.add(updateJson)
-        
+
         return messages
     }
 
-    private fun createSurfaceJson(): String {
+    private fun createSurfaceJson(surfaceId: String): String {
         val root = JsonObject()
         root.addProperty("version", "v0.10")
-        val createSurface = JsonObject()
-        createSurface.addProperty("surfaceId", surfaceId)
-        createSurface.addProperty("catalogId", "restaurant")
-        root.add("createSurface", createSurface)
+        val create = JsonObject()
+        create.addProperty("surfaceId", surfaceId)
+        create.addProperty("catalogId", "restaurant")
+        root.add("createSurface", create)
         return gson.toJson(root)
     }
 
-    private fun buildMenuResults(items: List<MenuItem>, titleText: String): String {
-        val root = JsonObject()
-        root.addProperty("version", "v0.10")
-        val update = JsonObject()
-        update.addProperty("surfaceId", surfaceId)
-        
-        val components = JsonArray()
-        
-        // Root Column
-        val rootCol = JsonObject()
-        rootCol.addProperty("id", "root")
-        rootCol.addProperty("component", "Column")
-        val children = JsonArray()
-        children.add("header")
-        items.forEachIndexed { index, item -> children.add("item_card_${item.id}_$index") }
-        rootCol.add("children", children)
-        components.add(rootCol)
+    /**
+     * MENU RESULTS / RECOMMENDATIONS
+     */
 
-        // Header
-        val header = JsonObject()
-        header.addProperty("id", "header")
-        header.addProperty("component", "Text")
-        header.addProperty("text", titleText)
-        header.addProperty("variant", "h2")
-        components.add(header)
-
-        // Items
-        items.forEachIndexed { index, item ->
-            val uniqueId = "item_card_${item.id}_$index"
-            val colId = "item_col_${item.id}_$index"
-            
-            val card = JsonObject()
-            card.addProperty("id", uniqueId)
-            card.addProperty("component", "Card")
-            card.addProperty("child", colId)
-            components.add(card)
-
-            val col = JsonObject()
-            col.addProperty("id", colId)
-            col.addProperty("component", "Column")
-            val colChildren = JsonArray()
-            colChildren.add("item_img_${item.id}_$index")
-            colChildren.add("item_name_${item.id}_$index")
-            colChildren.add("item_price_${item.id}_$index")
-            colChildren.add("item_btn_${item.id}_$index")
-            col.add("children", colChildren)
-            components.add(col)
-
-            val img = JsonObject()
-            img.addProperty("id", "item_img_${item.id}_$index")
-            img.addProperty("component", "Image")
-            img.addProperty("url", item.imageUrl)
-            img.addProperty("variant", "smallFeature")
-            components.add(img)
-
-            val name = JsonObject()
-            name.addProperty("id", "item_name_${item.id}_$index")
-            name.addProperty("component", "Text")
-            name.addProperty("text", item.name)
-            name.addProperty("variant", "h4")
-            components.add(name)
-
-            val price = JsonObject()
-            price.addProperty("id", "item_price_${item.id}_$index")
-            price.addProperty("component", "Text")
-            price.addProperty("text", "₹${item.price.amount}")
-            price.addProperty("variant", "body")
-            components.add(price)
-
-            val btn = JsonObject()
-            btn.addProperty("id", "item_btn_${item.id}_$index")
-            btn.addProperty("component", "Button")
-            btn.addProperty("text", "Add to Cart")
-            btn.addProperty("variant", "primary")
-            val action = JsonObject()
-            val event = JsonObject()
-            event.addProperty("name", "addToCart")
-            val context = JsonObject()
-            context.addProperty("itemId", item.id)
-            event.add("context", context)
-            action.add("event", event)
-            btn.add("action", action)
-            components.add(btn)
-        }
-
-        update.add("components", components)
-        root.add("updateComponents", update)
-        return gson.toJson(root)
-    }
-
-    private fun buildCartView(items: List<CartItem>, totalAmount: Int): String {
-        val root = JsonObject()
-        root.addProperty("version", "v0.10")
-        val update = JsonObject()
-        update.addProperty("surfaceId", surfaceId)
-        
-        val components = JsonArray()
-        val rootCol = JsonObject()
-        rootCol.addProperty("id", "root")
-        rootCol.addProperty("component", "Column")
-        val children = JsonArray()
-        children.add("cart_header")
-        items.forEachIndexed { index, item -> children.add("cart_item_${item.menuItem.id}_$index") }
-        children.add("cart_footer")
-        rootCol.add("children", children)
-        components.add(rootCol)
-
-        val header = JsonObject()
-        header.addProperty("id", "cart_header")
-        header.addProperty("component", "Text")
-        header.addProperty("text", "Your Shopping Cart")
-        header.addProperty("variant", "h2")
-        components.add(header)
-
-        items.forEachIndexed { index, cartItem ->
-            val itemText = JsonObject()
-            itemText.addProperty("id", "cart_item_${cartItem.menuItem.id}_$index")
-            itemText.addProperty("component", "Text")
-            itemText.addProperty("text", "${cartItem.menuItem.name} x ${cartItem.quantity} = ₹${cartItem.menuItem.price.amount * cartItem.quantity}")
-            itemText.addProperty("variant", "body")
-            components.add(itemText)
-        }
-
-        val footer = JsonObject()
-        footer.addProperty("id", "cart_footer")
-        footer.addProperty("component", "Text")
-        footer.addProperty("text", "Total Amount: ₹$totalAmount")
-        footer.addProperty("variant", "h3")
-        components.add(footer)
-
-        update.add("components", components)
-        root.add("updateComponents", update)
-        return gson.toJson(root)
-    }
-
-    private fun buildMessage(message: String): String {
+    private fun buildMenuSchema(surfaceId: String, title: String): String {
         val root = JsonObject()
         root.addProperty("version", "v0.10")
         val update = JsonObject()
         update.addProperty("surfaceId", surfaceId)
         val comps = JsonArray()
-        
-        val text = JsonObject()
-        text.addProperty("id", "root")
-        text.addProperty("component", "Text")
-        text.addProperty("text", message)
-        text.addProperty("variant", "subtitle")
-        comps.add(text)
+
+        // Root: Column [Header, List]
+        comps.add(JsonObject().apply {
+            addProperty("id", "root")
+            addProperty("component", "Column")
+            val ch = JsonArray()
+            ch.add("header")
+            ch.add("menu-list")
+            add("children", ch)
+            addProperty("align", "stretch")
+        })
+
+        // Header
+        comps.add(JsonObject().apply {
+            addProperty("id", "header")
+            addProperty("component", "Text")
+            addProperty("text", title)
+            addProperty("variant", "h2")
+        })
+
+        // List
+        comps.add(JsonObject().apply {
+            addProperty("id", "menu-list")
+            addProperty("component", "List")
+            addProperty("direction", "vertical")
+            val ch = JsonObject()
+            ch.addProperty("path", "/items")
+            ch.addProperty("componentId", "menu-card")
+            add("children", ch)
+        })
+
+        // Card Template
+        comps.add(JsonObject().apply {
+            addProperty("id", "menu-card")
+            addProperty("component", "Card")
+            addProperty("child", "menu-item-col")
+        })
+
+        // Card Content: Column [Image, Name, Price, Button]
+        comps.add(JsonObject().apply {
+            addProperty("id", "menu-item-col")
+            addProperty("component", "Column")
+            val ch = JsonArray()
+            ch.add("food-image")
+            ch.add("food-name")
+            ch.add("food-price")
+            ch.add("add-button")
+            add("children", ch)
+            addProperty("padding", 8)
+        })
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "food-image")
+            addProperty("component", "Image")
+            val url = JsonObject()
+            url.addProperty("path", "image")
+            add("url", url)
+            addProperty("variant", "smallFeature")
+        })
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "food-name")
+            addProperty("component", "Text")
+            val text = JsonObject()
+            text.addProperty("path", "name")
+            add("text", text)
+            addProperty("variant", "h5")
+        })
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "food-price")
+            addProperty("component", "Text")
+            val text = JsonObject()
+            text.addProperty("path", "price/amount")
+            add("text", text)
+            addProperty("variant", "body")
+        })
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "add-button")
+            addProperty("component", "Button")
+            addProperty("text", "Add to Cart")
+            addProperty("variant", "primary")
+            val action = JsonObject()
+            val event = JsonObject()
+            event.addProperty("name", "addToCart")
+            val context = JsonObject()
+            val itemId = JsonObject()
+            itemId.addProperty("path", "id")
+            context.add("itemId", itemId)
+            event.add("context", context)
+            action.add("event", event)
+            add("action", action)
+        })
 
         update.add("components", comps)
         root.add("updateComponents", update)
         return gson.toJson(root)
     }
 
-    private fun buildBookingConfirmation(booking: TableBooking): String {
+    private fun buildMenuData(surfaceId: String, items: List<MenuItem>): String {
         val root = JsonObject()
         root.addProperty("version", "v0.10")
         val update = JsonObject()
         update.addProperty("surfaceId", surfaceId)
-        val components = JsonArray()
+        update.addProperty("path", "/items")
+        update.add("value", gson.toJsonTree(items))
+        root.add("updateDataModel", update)
+        return gson.toJson(root)
+    }
 
-        val rootCol = JsonObject()
-        rootCol.addProperty("id", "root")
-        rootCol.addProperty("component", "Column")
-        val children = JsonArray()
-        children.add("booking_header")
-        children.add("booking_id")
-        children.add("booking_people")
-        children.add("booking_time")
-        rootCol.add("children", children)
-        components.add(rootCol)
+    /**
+     * CART UPDATE
+     */
 
-        val header = JsonObject()
-        header.addProperty("id", "booking_header")
-        header.addProperty("component", "Text")
-        header.addProperty("text", "✓ Table Booking Confirmed")
-        header.addProperty("variant", "h2")
-        components.add(header)
+    private fun buildCartUpdateSchema(surfaceId: String, item: MenuItem, totalCount: Int): String {
+        val root = JsonObject()
+        root.addProperty("version", "v0.10")
+        val update = JsonObject()
+        update.addProperty("surfaceId", surfaceId)
+        val comps = JsonArray()
 
-        val bookingId = JsonObject()
-        bookingId.addProperty("id", "booking_id")
-        bookingId.addProperty("component", "Text")
-        bookingId.addProperty("text", "Booking ID: ${booking.id}")
-        bookingId.addProperty("variant", "subtitle")
-        components.add(bookingId)
+        comps.add(JsonObject().apply {
+            addProperty("id", "root")
+            addProperty("component", "Card")
+            addProperty("child", "content")
+        })
 
-        val people = JsonObject()
-        people.addProperty("id", "booking_people")
-        people.addProperty("component", "Text")
-        people.addProperty("text", "Number of People: ${booking.numberOfPeople}")
-        people.addProperty("variant", "body")
-        components.add(people)
+        comps.add(JsonObject().apply {
+            addProperty("id", "content")
+            addProperty("component", "Column")
+            val ch = JsonArray()
+            ch.add("msg")
+            ch.add("actions")
+            add("children", ch)
+        })
 
-        val time = JsonObject()
-        time.addProperty("id", "booking_time")
-        time.addProperty("component", "Text")
-        time.addProperty("text", "Booking Time: ${booking.bookingDate} at ${booking.bookingTime}")
-        time.addProperty("variant", "body")
-        components.add(time)
+        comps.add(JsonObject().apply {
+            addProperty("id", "msg")
+            addProperty("component", "Text")
+            addProperty("text", "🛒 ${item.name} added. Total items: $totalCount")
+            addProperty("variant", "body")
+        })
 
-        update.add("components", components)
+        comps.add(JsonObject().apply {
+            addProperty("id", "actions")
+            addProperty("component", "Row")
+            val ch = JsonArray()
+            ch.add("view-cart")
+            ch.add("checkout")
+            add("children", ch)
+            addProperty("justify", "spaceAround")
+        })
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "view-cart")
+            addProperty("component", "Button")
+            addProperty("text", "View Cart")
+            addProperty("variant", "borderless")
+            val action = JsonObject()
+            val event = JsonObject()
+            event.addProperty("name", "viewCart")
+            action.add("event", event)
+            add("action", action)
+        })
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "checkout")
+            addProperty("component", "Button")
+            addProperty("text", "Checkout")
+            addProperty("variant", "primary")
+            val action = JsonObject()
+            val event = JsonObject()
+            event.addProperty("name", "checkout")
+            action.add("event", event)
+            add("action", action)
+        })
+
+        update.add("components", comps)
+        root.add("updateComponents", update)
+        return gson.toJson(root)
+    }
+
+    /**
+     * CART VIEW
+     */
+
+    private fun buildCartViewSchema(surfaceId: String, totalAmount: Int): String {
+        val root = JsonObject()
+        root.addProperty("version", "v0.10")
+        val update = JsonObject()
+        update.addProperty("surfaceId", surfaceId)
+        val comps = JsonArray()
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "root")
+            addProperty("component", "Card")
+            addProperty("child", "main-col")
+        })
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "main-col")
+            addProperty("component", "Column")
+            val ch = JsonArray()
+            ch.add("title")
+            ch.add("cart-list")
+            ch.add("divider")
+            ch.add("total")
+            ch.add("checkout-btn")
+            add("children", ch)
+            addProperty("align", "stretch")
+        })
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "title")
+            addProperty("component", "Text")
+            addProperty("text", "Your Order Summary")
+            addProperty("variant", "h5")
+        })
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "cart-list")
+            addProperty("component", "List")
+            addProperty("direction", "vertical")
+            val ch = JsonObject()
+            ch.addProperty("path", "/cart-items")
+            ch.addProperty("componentId", "cart-item-row")
+            add("children", ch)
+        })
+
+        // Cart Item Template: Row [Name, Price]
+        comps.add(JsonObject().apply {
+            addProperty("id", "cart-item-row")
+            addProperty("component", "Row")
+            val ch = JsonArray()
+            ch.add("item-name")
+            ch.add("item-price")
+            add("children", ch)
+            addProperty("justify", "spaceBetween")
+        })
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "item-name")
+            addProperty("component", "Text")
+            val text = JsonObject()
+            text.addProperty("path", "menuItem/name")
+            add("text", text)
+            addProperty("variant", "body")
+        })
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "item-price")
+            addProperty("component", "Text")
+            val text = JsonObject()
+            text.addProperty("path", "menuItem/price/amount")
+            add("text", text)
+            addProperty("variant", "body")
+        })
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "divider")
+            addProperty("component", "Divider")
+        })
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "total")
+            addProperty("component", "Text")
+            addProperty("text", "Total Amount: ₹$totalAmount")
+            addProperty("variant", "h4")
+        })
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "checkout-btn")
+            addProperty("component", "Button")
+            addProperty("text", "Proceed to Checkout")
+            addProperty("variant", "primary")
+            val action = JsonObject()
+            val event = JsonObject()
+            event.addProperty("name", "checkout")
+            action.add("event", event)
+            add("action", action)
+        })
+
+        update.add("components", comps)
+        root.add("updateComponents", update)
+        return gson.toJson(root)
+    }
+
+    private fun buildCartData(surfaceId: String, items: List<CartItem>): String {
+        val root = JsonObject()
+        root.addProperty("version", "v0.10")
+        val update = JsonObject()
+        update.addProperty("surfaceId", surfaceId)
+        update.addProperty("path", "/cart-items")
+        update.add("value", gson.toJsonTree(items))
+        root.add("updateDataModel", update)
+        return gson.toJson(root)
+    }
+
+    /**
+     * BOOKING CONFIRMATION
+     */
+
+    private fun buildBookingConfirmationSchema(surfaceId: String, booking: TableBooking): String {
+        val root = JsonObject()
+        root.addProperty("version", "v0.10")
+        val update = JsonObject()
+        update.addProperty("surfaceId", surfaceId)
+        val comps = JsonArray()
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "root")
+            addProperty("component", "Column")
+            val ch = JsonArray()
+            ch.add("header")
+            ch.add("booking-id")
+            ch.add("booking-details")
+            add("children", ch)
+        })
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "header")
+            addProperty("component", "Text")
+            addProperty("text", "✓ Table Booking Confirmed")
+            addProperty("variant", "h2")
+        })
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "booking-id")
+            addProperty("component", "Text")
+            addProperty("text", "Booking ID: ${booking.id}")
+            addProperty("variant", "subtitle")
+        })
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "booking-details")
+            addProperty("component", "Text")
+            addProperty("text", "Table for ${booking.numberOfPeople} on ${booking.bookingDate} at ${booking.bookingTime}")
+            addProperty("variant", "body")
+        })
+
+        update.add("components", comps)
+        root.add("updateComponents", update)
+        return gson.toJson(root)
+    }
+
+    /**
+     * SIMPLE MESSAGE
+     */
+
+    private fun buildSimpleMessage(surfaceId: String, message: String): String {
+        val root = JsonObject()
+        root.addProperty("version", "v0.10")
+        val update = JsonObject()
+        update.addProperty("surfaceId", surfaceId)
+        val comps = JsonArray()
+        
+        comps.add(JsonObject().apply {
+            addProperty("id", "root")
+            addProperty("component", "Text")
+            addProperty("text", message)
+            addProperty("variant", "subtitle")
+        })
+
+        update.add("components", comps)
         root.add("updateComponents", update)
         return gson.toJson(root)
     }

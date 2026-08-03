@@ -24,6 +24,8 @@ import android.util.Log
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @HiltViewModel
 class RestaurantMainViewModel @Inject constructor(
@@ -114,41 +116,59 @@ class RestaurantMainViewModel @Inject constructor(
     fun getAllMenuItems(): List<MenuItem> = repository.getMenuItems()
 
     fun sendMessage(text: String) {
+        val startTime = System.currentTimeMillis()
+        Log.d("A2UI_PERF", "Message sent at $startTime")
+        
+        // 1. Add user message IMMEDIATELY to UI
         _uiMessages.add(UiMessage(text, isFromUser = true))
         
         viewModelScope.launch {
             try {
-                adkMasterAgent?.let { agent ->
-                    val responses = agent.processQuery(text)
-                    responses.forEach { response ->
-                        Log.d("A2UI_FLOW", "6. Checking response item: '${response.take(50).replace("\n", " ")}...'")
-                        if (response.trim().startsWith("{") && response.contains("version")) {
-                            Log.d("A2UI_FLOW", "7. SUCCESS: Detected A2UI Payload in response")
-                            
-                            // Split multi-command JSON if needed
+                // 2. Offload AI processing to IO thread to prevent UI freeze
+                val responses = withContext(Dispatchers.IO) {
+                    val agentStartTime = System.currentTimeMillis()
+                    Log.d("A2UI_PERF", "Agent started at $agentStartTime")
+                    val result = adkMasterAgent?.processQuery(text)
+                    Log.d("A2UI_PERF", "Agent completed in ${System.currentTimeMillis() - agentStartTime}ms")
+                    result
+                }
+
+                var a2uiAdded = false
+                responses?.forEach { response ->
+                    Log.d("A2UI_FLOW", "6. Checking response item: '${response.take(50).replace("\n", " ")}...'")
+                    if (response.trim().startsWith("{") && response.contains("version")) {
+                        Log.d("A2UI_FLOW", "7. Detected A2UI Payload. Processing...")
+                        
+                        // 3. Offload JSON parsing and splitting to background thread
+                        withContext(Dispatchers.Default) {
+                            val a2uiProcStart = System.currentTimeMillis()
                             val jsonList = splitA2UICommand(response)
-                            jsonList.forEachIndexed { index, subJson ->
-                                Log.d("A2UI_FLOW", "7.$index. Processing sub-command: ${subJson.take(100)}...")
+                            jsonList.forEach { subJson ->
                                 renderer.processMessage(subJson)
                             }
+                            Log.d("A2UI_PERF", "A2UI processed in ${System.currentTimeMillis() - a2uiProcStart}ms")
+                        }
 
+                        // 4. Add only ONE bubble for A2UI content per response set
+                        if (!a2uiAdded) {
                             _uiMessages.add(UiMessage(
                                 text = "I've updated the view for you:",
                                 isFromUser = false,
                                 isA2UI = true,
-                                a2uiPayload = response // Keep original for reference if needed
+                                a2uiPayload = response
                             ))
-                        } else {
-                            Log.d("A2UI_FLOW", "7. Regular text response: ${response.take(50).replace("\n", " ")}...")
-                            _uiMessages.add(UiMessage(response, isFromUser = false))
+                            a2uiAdded = true
+                            Log.d("A2UI_FLOW", "7. A2UI Bubble added to UI")
                         }
+                    } else {
+                        _uiMessages.add(UiMessage(response, isFromUser = false))
                     }
-                } ?: run {
-                    _uiMessages.add(UiMessage("I'm sorry, I'm still initializing. Please try again in a moment.", isFromUser = false))
                 }
             } catch (e: Exception) {
+                Log.e("A2UI_FLOW", "Error in sendMessage: ${e.message}")
                 _uiMessages.add(UiMessage("Oops, I encountered an error: ${e.message}", isFromUser = false))
             }
+            Log.d("A2UI_PERF", "UI updated after total ${System.currentTimeMillis() - startTime}ms")
         }
     }
 
