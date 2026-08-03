@@ -1,5 +1,9 @@
 package com.example.a2ui_sample.presentation.screens
 
+import android.content.Intent
+import android.speech.RecognizerIntent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -42,6 +46,30 @@ fun ChatScreen(
     val uiMessages = viewModel.uiMessages
     val listState = rememberLazyListState()
     var textState by remember { mutableStateOf("") }
+
+    // Voice recognition launcher
+    val voiceLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            val data = result.data
+            val results = data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+            if (!results.isNullOrEmpty()) {
+                val spokenText = results[0]
+                textState = spokenText
+                // Automatically send if needed, or just fill the box
+                // viewModel.sendMessage(spokenText)
+            }
+        }
+    }
+
+    val onVoiceInputClick = {
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak now...")
+        }
+        voiceLauncher.launch(intent)
+    }
 
     // Observe navigation events from ViewModel (A2UI actions)
     LaunchedEffect(viewModel) {
@@ -112,7 +140,10 @@ fun ChatScreen(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                items(uiMessages) { message ->
+                items(
+                    items = uiMessages,
+                    key = { it.id }
+                ) { message ->
                     ChatBubble(message, viewModel.renderer)
                 }
             }
@@ -129,7 +160,8 @@ fun ChatScreen(
                         viewModel.sendMessage(textState)
                         textState = ""
                     }
-                }
+                },
+                onVoiceInput = onVoiceInputClick
             )
         }
     }
@@ -237,7 +269,7 @@ fun QuickActions(onAction: (String) -> Unit) {
 }
 
 @Composable
-fun ChatInput(text: String, onTextChange: (String) -> Unit, onSend: () -> Unit) {
+fun ChatInput(text: String, onTextChange: (String) -> Unit, onSend: () -> Unit, onVoiceInput: () -> Unit) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shadowElevation = 8.dp,
@@ -249,6 +281,10 @@ fun ChatInput(text: String, onTextChange: (String) -> Unit, onSend: () -> Unit) 
                 .navigationBarsPadding(),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            IconButton(onClick = onVoiceInput) {
+                Icon(Icons.Default.Mic, contentDescription = "Voice Input", tint = MaterialTheme.colorScheme.primary)
+            }
+            Spacer(modifier = Modifier.width(4.dp))
             TextField(
                 value = text,
                 onValueChange = onTextChange,

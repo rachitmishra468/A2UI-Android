@@ -27,6 +27,7 @@ import org.a2ui.compose.animation.AnimatedText
 fun BookingScreen(
     onBack: () -> Unit,
     onBookingConfirmed: () -> Unit,
+    onViewHistory: () -> Unit,
     viewModel: RestaurantMainViewModel = hiltViewModel()
 ) {
     var guests by remember { mutableStateOf(2) }
@@ -43,6 +44,11 @@ fun BookingScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    TextButton(onClick = onViewHistory) {
+                        Text("History", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                     }
                 }
             )

@@ -70,6 +70,10 @@ class MenuRepositoryImpl private constructor(private val context: Context) : Men
 
     override fun getBookings(): List<TableBooking> = bookings.toList()
 
+    override fun cancelBooking(bookingId: String): Boolean {
+        return bookings.removeIf { it.id == bookingId || it.bookingId == bookingId }
+    }
+
     override fun updateCartQuantity(menuItemId: Int, quantity: Int): CartItem? {
         val existing = cart.find { it.menuItem.id == menuItemId } ?: return null
         if (quantity <= 0) {

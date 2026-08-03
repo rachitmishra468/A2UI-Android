@@ -86,6 +86,10 @@ class MenuRepositoryImpl @Inject constructor(
 
     override fun getBookings(): List<TableBooking> = bookings.toList()
 
+    override fun cancelBooking(bookingId: String): Boolean {
+        return bookings.removeIf { it.id == bookingId || it.bookingId == bookingId }
+    }
+
     override fun placeOrder(order: Order): Boolean {
         orders.add(0, order)
         clearCart()

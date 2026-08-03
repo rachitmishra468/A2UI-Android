@@ -22,6 +22,7 @@ interface MenuRepository {
     // Bookings
     fun addBooking(booking: TableBooking)
     fun getBookings(): List<TableBooking>
+    fun cancelBooking(bookingId: String): Boolean
     
     // Orders
     fun placeOrder(order: Order): Boolean

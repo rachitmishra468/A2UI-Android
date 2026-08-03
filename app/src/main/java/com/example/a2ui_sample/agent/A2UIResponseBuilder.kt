@@ -13,48 +13,56 @@ import com.google.gson.JsonObject
 class A2UIResponseBuilder {
     private val gson = Gson()
 
-    fun build(response: AgentResponse): List<String> {
-        val uniqueId = "surf_${System.currentTimeMillis()}_${(0..999).random()}"
+    /**
+     * buildWithId
+     * Version of build that uses a pre-generated unique surfaceId.
+     */
+    fun buildWithId(response: AgentResponse, surfaceId: String): List<String> {
         val messages = mutableListOf<String>()
 
-        // 1. Initial Surface Creation
-        messages.add(createSurfaceJson(uniqueId))
+        // 1. Initial Surface Creation with unique ID
+        messages.add(createSurfaceJson(surfaceId))
 
         // 2. Build UI and Data based on response type
         when (response) {
             is AgentResponse.MenuResults -> {
-                messages.add(buildMenuSchema(uniqueId, response.message))
-                messages.add(buildMenuData(uniqueId, response.items))
+                messages.add(buildMenuSchema(surfaceId, response.message))
+                messages.add(buildMenuData(surfaceId, response.items))
             }
             is AgentResponse.Recommendations -> {
-                messages.add(buildMenuSchema(uniqueId, "Recommendations for you"))
-                messages.add(buildMenuData(uniqueId, response.items))
+                messages.add(buildMenuSchema(surfaceId, "Recommendations for you"))
+                messages.add(buildMenuData(surfaceId, response.items))
             }
             is AgentResponse.CartUpdate -> {
-                messages.add(buildCartUpdateSchema(uniqueId, response.item, response.totalCount))
+                messages.add(buildCartUpdateSchema(surfaceId, response.item, response.totalCount))
             }
             is AgentResponse.CartView -> {
-                messages.add(buildCartViewSchema(uniqueId, response.totalAmount))
-                messages.add(buildCartData(uniqueId, response.items))
+                messages.add(buildCartViewSchema(surfaceId, response.totalAmount))
+                messages.add(buildCartData(surfaceId, response.items))
             }
             is AgentResponse.BookingConfirmation -> {
-                messages.add(buildBookingConfirmationSchema(uniqueId, response.booking))
+                messages.add(buildBookingConfirmationSchema(surfaceId, response.booking))
             }
             is AgentResponse.OrderConfirmation -> {
-                messages.add(buildSimpleMessage(uniqueId, "Order confirmed! ID: ${response.order.id.value}. Total: ₹${response.order.totalAmount.amount}"))
+                messages.add(buildSimpleMessage(surfaceId, "Order confirmed! ID: ${response.order.id.value}. Total: ₹${response.order.totalAmount.amount}"))
             }
             is AgentResponse.Error -> {
-                messages.add(buildSimpleMessage(uniqueId, "Error: ${response.message}"))
+                messages.add(buildSimpleMessage(surfaceId, "Error: ${response.message}"))
             }
             is AgentResponse.Message -> {
-                messages.add(buildSimpleMessage(uniqueId, response.message))
+                messages.add(buildSimpleMessage(surfaceId, response.message))
             }
             else -> {
-                messages.add(buildSimpleMessage(uniqueId, response.toString()))
+                messages.add(buildSimpleMessage(surfaceId, response.toString()))
             }
         }
 
         return messages
+    }
+
+    fun build(response: AgentResponse): List<String> {
+        val uniqueId = "surf_${System.currentTimeMillis()}_${(0..999).random()}"
+        return buildWithId(response, uniqueId)
     }
 
     private fun createSurfaceJson(surfaceId: String): String {

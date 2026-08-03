@@ -72,6 +72,9 @@ fun AppNavigation() {
                 onBack = { navController.popBackStack() },
                 onBookingConfirmed = {
                     navController.navigate("booking_confirmation")
+                },
+                onViewHistory = {
+                    navController.navigate("booking_history")
                 }
             )
         }

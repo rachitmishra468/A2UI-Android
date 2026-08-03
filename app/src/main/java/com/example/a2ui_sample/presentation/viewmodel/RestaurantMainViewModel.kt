@@ -6,7 +6,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.a2ui_sample.agent.ADKRestaurantMasterAgent
-import com.example.a2ui_sample.agent.OrchestratorTools
 import com.example.a2ui_sample.domain.model.*
 import com.example.a2ui_sample.domain.repository.MenuRepository
 import com.example.a2ui_sample.domain.valueobjects.OrderId
@@ -54,14 +53,14 @@ class RestaurantMainViewModel @Inject constructor(
         
         try {
             Log.d("A2UI_INIT", "Creating ADKRestaurantMasterAgent")
-            adkMasterAgent = ADKRestaurantMasterAgent(repository, OrchestratorTools())
+            adkMasterAgent = ADKRestaurantMasterAgent(repository)
             Log.d("A2UI_INIT", "ADKRestaurantMasterAgent created successfully")
         } catch (e: Exception) {
             Log.e("A2UI_INIT", "CRITICAL: ADKRestaurantMasterAgent initialization failed: ${e.message}", e)
         }
 
         // Welcome message
-        _uiMessages.add(UiMessage("Hello! I'm your AI Restaurant Assistant. How can I help you today?", isFromUser = false))
+        _uiMessages.add(UiMessage(text = "Hello! I'm your AI Restaurant Assistant. How can I help you today?", isFromUser = false))
     }
 
     override fun onAction(surfaceId: String, actionName: String, context: Map<String, Any>) {
@@ -120,16 +119,21 @@ class RestaurantMainViewModel @Inject constructor(
         Log.d("A2UI_PERF", "Message sent at $startTime")
         
         // 1. Add user message IMMEDIATELY to UI
-        _uiMessages.add(UiMessage(text, isFromUser = true))
+        _uiMessages.add(UiMessage(text = text, isFromUser = true))
         
         viewModelScope.launch {
             try {
+                // Prepare conversation history for Gemini
+                val historyContext = _uiMessages.takeLast(10).map { 
+                    if (it.isFromUser) "User: ${it.text}" else "Assistant: ${it.text}"
+                }
+
                 // 2. Offload AI processing to IO thread to prevent UI freeze
                 val responses = withContext(Dispatchers.IO) {
                     val agentStartTime = System.currentTimeMillis()
-                    Log.d("A2UI_PERF", "Agent started at $agentStartTime")
-                    val result = adkMasterAgent?.processQuery(text)
-                    Log.d("A2UI_PERF", "Agent completed in ${System.currentTimeMillis() - agentStartTime}ms")
+                    Log.d("A2UI_PERF", "Agent processing started at $agentStartTime")
+                    val result = adkMasterAgent?.processQuery(text, historyContext)
+                    Log.d("A2UI_PERF", "Agent processing completed in ${System.currentTimeMillis() - agentStartTime}ms")
                     result
                 }
 
@@ -140,16 +144,19 @@ class RestaurantMainViewModel @Inject constructor(
                         Log.d("A2UI_FLOW", "7. Detected A2UI Payload. Processing...")
                         
                         // 3. Offload JSON parsing and splitting to background thread
+                        // We MUST process all messages to update the renderer state
                         withContext(Dispatchers.Default) {
                             val a2uiProcStart = System.currentTimeMillis()
                             val jsonList = splitA2UICommand(response)
                             jsonList.forEach { subJson ->
+                                Log.d("A2UI_FLOW", "7. Renderer processing message: ${subJson.take(100)}...")
                                 renderer.processMessage(subJson)
                             }
                             Log.d("A2UI_PERF", "A2UI processed in ${System.currentTimeMillis() - a2uiProcStart}ms")
                         }
 
-                        // 4. Add only ONE bubble for A2UI content per response set
+                        // 4. Add A2UI bubble ONLY ONCE per execution set
+                        // This prevents 3 bubbles (create, updateComponents, updateData) for one surface.
                         if (!a2uiAdded) {
                             _uiMessages.add(UiMessage(
                                 text = "I've updated the view for you:",
@@ -161,12 +168,12 @@ class RestaurantMainViewModel @Inject constructor(
                             Log.d("A2UI_FLOW", "7. A2UI Bubble added to UI")
                         }
                     } else {
-                        _uiMessages.add(UiMessage(response, isFromUser = false))
+                        _uiMessages.add(UiMessage(text = response, isFromUser = false))
                     }
                 }
             } catch (e: Exception) {
                 Log.e("A2UI_FLOW", "Error in sendMessage: ${e.message}")
-                _uiMessages.add(UiMessage("Oops, I encountered an error: ${e.message}", isFromUser = false))
+                _uiMessages.add(UiMessage(text = "Oops, I encountered an error: ${e.message}", isFromUser = false))
             }
             Log.d("A2UI_PERF", "UI updated after total ${System.currentTimeMillis() - startTime}ms")
         }
@@ -198,7 +205,7 @@ class RestaurantMainViewModel @Inject constructor(
             bookingTime = time
         )
         repository.addBooking(booking)
-        _uiMessages.add(UiMessage("Great! I've booked a table for $numberOfPeople on $date at $time. Your booking ID is ${booking.id}.", isFromUser = false))
+        _uiMessages.add(UiMessage(text = "Great! I've booked a table for $numberOfPeople on $date at $time. Your booking ID is ${booking.id}.", isFromUser = false))
     }
 
     fun getBookings(): List<TableBooking> = repository.getBookings()
@@ -239,7 +246,7 @@ class RestaurantMainViewModel @Inject constructor(
 
     fun clearChat() {
         _uiMessages.clear()
-        _uiMessages.add(UiMessage("Chat cleared. How can I help you now?", isFromUser = false))
+        _uiMessages.add(UiMessage(text = "Chat cleared. How can I help you now?", isFromUser = false))
     }
 
     private fun splitA2UICommand(json: String): List<String> {
@@ -272,6 +279,7 @@ sealed class NavigationEvent {
 }
 
 data class UiMessage(
+    val id: String = java.util.UUID.randomUUID().toString(),
     val text: String,
     val isFromUser: Boolean,
     val timestamp: Long = System.currentTimeMillis(),
