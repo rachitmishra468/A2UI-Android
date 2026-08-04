@@ -12,23 +12,23 @@ interface MenuRepository {
     fun searchMenu(category: String? = null, type: String? = null, maxPrice: Int? = null): List<MenuItem>
     
     // Cart
-    fun addToCart(menuItemId: Int): CartItem?
-    fun getCart(): List<CartItem>
+    suspend fun addToCart(menuItemId: Int): CartItem?
+    suspend fun getCart(): List<CartItem>
     fun getCartFlow(): kotlinx.coroutines.flow.Flow<List<CartItem>>
-    fun getCartTotal(): Int
-    fun updateCartQuantity(menuItemId: Int, quantity: Int): CartItem?
-    fun removeFromCart(menuItemId: Int): Boolean
-    fun clearCart()
+    suspend fun getCartTotal(): Int
+    suspend fun updateCartQuantity(menuItemId: Int, quantity: Int): CartItem?
+    suspend fun removeFromCart(menuItemId: Int): Boolean
+    suspend fun clearCart()
     
     // Bookings
-    fun addBooking(booking: TableBooking)
-    fun getBookings(): List<TableBooking>
-    fun cancelBooking(bookingId: String): Boolean
+    suspend fun addBooking(booking: TableBooking)
+    suspend fun getBookings(): List<TableBooking>
+    suspend fun cancelBooking(bookingId: String): Boolean
     
     // Orders
-    fun placeOrder(order: Order): Boolean
-    fun getCurrentOrders(): List<Order>
-    fun getPastOrders(): List<Order>
-    fun completeOrder(orderId: String)
-    fun getDeliveryStatus(orderId: String): Delivery?
+    suspend fun placeOrder(order: Order): Boolean
+    suspend fun getCurrentOrders(): List<Order>
+    suspend fun getPastOrders(): List<Order>
+    suspend fun completeOrder(orderId: String)
+    suspend fun getDeliveryStatus(orderId: String): Delivery?
 }

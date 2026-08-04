@@ -10,12 +10,14 @@ import com.example.a2ui_sample.domain.repository.MenuRepository
  */
 class CartAgent(private val repository: MenuRepository) {
 
-    fun execute(intent: IntentResult): AgentResponse {
+    suspend fun execute(intent: IntentResult): AgentResponse {
         return when (intent.intent) {
             com.example.a2ui_sample.domain.model.UserIntent.CART_VIEW -> {
                 val items = repository.getCart()
-                val total = repository.getCartTotal()
-                AgentResponse.CartView(items, total)
+                val subtotal = repository.getCartTotal()
+                val tax = (subtotal * 0.05).toInt()
+                val grandTotal = subtotal + tax
+                AgentResponse.CartView(items, grandTotal)
             }
             com.example.a2ui_sample.domain.model.UserIntent.CART_ADD -> {
                 val itemName = intent.entities["food_item"] as? String
@@ -26,7 +28,8 @@ class CartAgent(private val repository: MenuRepository) {
                     if (menuItem != null) {
                         repository.addToCart(menuItem.id)
                         // Note: Ignoring quantity for now as repo might not support multiple add at once
-                        AgentResponse.CartUpdate(menuItem, repository.getCart().sumOf { it.quantity })
+                        val currentCart = repository.getCart()
+                        AgentResponse.CartUpdate(menuItem, currentCart.sumOf { it.quantity })
                     } else {
                         AgentResponse.Message("I couldn't find '$itemName' in our menu.")
                     }
@@ -62,7 +65,20 @@ class CartAgent(private val repository: MenuRepository) {
                 AgentResponse.Message("Your cart has been cleared.")
             }
             com.example.a2ui_sample.domain.model.UserIntent.CHECKOUT -> {
-                AgentResponse.Message("Ready to checkout? I've prepared your order summary.")
+                android.util.Log.d("A2UI_FLOW", "[CHECKOUT] Intent Detected")
+                val items = repository.getCart()
+                android.util.Log.d("A2UI_FLOW", "[CHECKOUT] Cart Retrieved: ${items.size} items")
+                
+                if (items.isEmpty()) {
+                    return AgentResponse.Message("Your cart is empty. Please add some items before checking out.")
+                }
+
+                val subtotal = repository.getCartTotal()
+                val tax = (subtotal * 0.05).toInt()
+                val grandTotal = subtotal + tax
+                
+                android.util.Log.d("A2UI_FLOW", "[CHECKOUT] Order Summary Generated: Subtotal=$subtotal, Total=$grandTotal")
+                AgentResponse.OrderSummary(items, subtotal, tax, grandTotal)
             }
             else -> AgentResponse.Message("I can help you with your cart or checkout.")
         }

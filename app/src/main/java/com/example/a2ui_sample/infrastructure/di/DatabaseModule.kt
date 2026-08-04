@@ -2,8 +2,8 @@ package com.example.a2ui_sample.infrastructure.di
 
 import android.content.Context
 import androidx.room.Room
-import com.example.a2ui_sample.infrastructure.persistence.AppDatabase
-import com.example.a2ui_sample.infrastructure.persistence.dao.MenuDao
+import com.example.a2ui_sample.infrastructure.persistence.RestaurantDatabase
+import com.example.a2ui_sample.infrastructure.persistence.dao.*
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -17,16 +17,37 @@ object DatabaseModule {
 
     @Provides
     @Singleton
-    fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
+    fun provideDatabase(@ApplicationContext context: Context): RestaurantDatabase {
         return Room.databaseBuilder(
             context,
-            AppDatabase::class.java,
+            RestaurantDatabase::class.java,
             "restaurant_db"
-        ).build()
+        ).fallbackToDestructiveMigration().build()
     }
 
     @Provides
-    fun provideMenuDao(database: AppDatabase): MenuDao {
+    fun provideMenuDao(database: RestaurantDatabase): MenuDao {
         return database.menuDao()
     }
+
+    @Provides
+    fun provideOrderDao(database: RestaurantDatabase): OrderDao = database.orderDao()
+
+    @Provides
+    fun provideBookingDao(database: RestaurantDatabase): BookingDao = database.bookingDao()
+
+    @Provides
+    fun provideCartDao(database: RestaurantDatabase): CartDao = database.cartDao()
+
+    @Provides
+    fun provideFeedbackDao(database: RestaurantDatabase): FeedbackDao = database.feedbackDao()
+
+    @Provides
+    fun provideUserProfileDao(database: RestaurantDatabase): UserProfileDao = database.userProfileDao()
+
+    @Provides
+    fun provideDeliveryDao(database: RestaurantDatabase): DeliveryDao = database.deliveryDao()
+
+    @Provides
+    fun provideChatMessageDao(database: RestaurantDatabase): ChatMessageDao = database.chatMessageDao()
 }

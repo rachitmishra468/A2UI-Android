@@ -37,6 +37,11 @@ enum class TableStatus {
     MAINTENANCE
 }
 
+enum class BookingSource {
+    CHAT,
+    APP
+}
+
 enum class MenuItemType {
     VEG,
     NONVEG,

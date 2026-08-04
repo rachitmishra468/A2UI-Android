@@ -17,7 +17,10 @@ object MenuMapper {
             image = entity.imageUrl,
             rating = entity.rating,
             reviewCount = entity.reviewCount,
-            isAvailable = entity.isAvailable
+            calories = entity.calories,
+            tags = entity.tags,
+            isBestSeller = entity.isBestSeller,
+            isAvailable = entity.isAvailable,
         )
     }
 
@@ -32,7 +35,10 @@ object MenuMapper {
             imageUrl = domain.image,
             rating = domain.rating,
             reviewCount = domain.reviewCount,
-            isAvailable = domain.isAvailable
+            calories = domain.calories,
+            tags = domain.tags,
+            isBestSeller = domain.isBestSeller,
+            isAvailable = domain.isAvailable,
         )
     }
 }

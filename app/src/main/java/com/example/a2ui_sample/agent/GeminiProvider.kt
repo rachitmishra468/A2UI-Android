@@ -43,6 +43,7 @@ class GeminiProvider {
         - ORDER_HISTORY: User wants to see past orders.
         - ORDER_TRACKING: User wants to track their order status, delivery time, or courier info.
         - ORDER_REPEAT: User wants to order the same thing again.
+        - ORDER_CANCEL: User wants to cancel an existing order.
         - OFFER_LIST: User wants to see discounts, coupons, or deals.
         - OFFER_APPLY: User wants to apply a specific code or discount.
         - CHECKOUT: User is ready to pay and place the order.

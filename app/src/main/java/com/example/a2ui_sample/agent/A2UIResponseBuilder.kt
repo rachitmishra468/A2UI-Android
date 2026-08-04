@@ -62,6 +62,16 @@ class A2UIResponseBuilder {
             is AgentResponse.OrderConfirmation -> {
                 messages.add(buildSimpleMessage(surfaceId, "Order confirmed! ID: ${response.order.id.value}. Total: ₹${response.order.totalAmount.amount}"))
             }
+            is AgentResponse.OrderSummary -> {
+                messages.add(buildOrderSummarySchema(surfaceId, response.subtotal, response.tax, response.total))
+                messages.add(buildCartData(surfaceId, response.items))
+            }
+            is AgentResponse.PaymentChoice -> {
+                messages.add(buildPaymentChoiceSchema(surfaceId, response.total))
+            }
+            is AgentResponse.OrderPlaced -> {
+                messages.add(buildOrderPlacedSchema(surfaceId, response.order))
+            }
             is AgentResponse.Error -> {
                 messages.add(buildSimpleMessage(surfaceId, "Error: ${response.message}"))
             }
@@ -307,8 +317,11 @@ class A2UIResponseBuilder {
             val ch = JsonArray()
             ch.add("title")
             ch.add("cart-list")
-            ch.add("divider")
-            ch.add("total")
+            ch.add("divider-1")
+            ch.add("subtotal-row")
+            ch.add("tax-row")
+            ch.add("divider-2")
+            ch.add("total-row")
             ch.add("checkout-btn")
             add("children", ch)
             addProperty("align", "stretch")
@@ -331,22 +344,22 @@ class A2UIResponseBuilder {
             add("children", ch)
         })
 
-        // Cart Item Template: Row [Name, Price]
+        // Cart Item Template: Row [Name x Qty, Price]
         comps.add(JsonObject().apply {
             addProperty("id", "cart-item-row")
             addProperty("component", "Row")
             val ch = JsonArray()
-            ch.add("item-name")
+            ch.add("item-name-qty")
             ch.add("item-price")
             add("children", ch)
             addProperty("justify", "spaceBetween")
         })
 
         comps.add(JsonObject().apply {
-            addProperty("id", "item-name")
+            addProperty("id", "item-name-qty")
             addProperty("component", "Text")
             val text = JsonObject()
-            text.addProperty("path", "menuItem/name")
+            text.addProperty("template", "{quantity}x {menuItem/name}")
             add("text", text)
             addProperty("variant", "body")
         })
@@ -361,16 +374,61 @@ class A2UIResponseBuilder {
         })
 
         comps.add(JsonObject().apply {
-            addProperty("id", "divider")
+            addProperty("id", "divider-1")
             addProperty("component", "Divider")
         })
 
+        // Subtotal Row
         comps.add(JsonObject().apply {
-            addProperty("id", "total")
-            addProperty("component", "Text")
-            addProperty("text", "Total Amount: ₹$totalAmount")
-            addProperty("variant", "h4")
+            addProperty("id", "subtotal-row")
+            addProperty("component", "Row")
+            val ch = JsonArray()
+            ch.add("subtotal-label"); ch.add("subtotal-value")
+            add("children", ch)
+            addProperty("justify", "spaceBetween")
         })
+        comps.add(JsonObject().apply { addProperty("id", "subtotal-label"); addProperty("component", "Text"); addProperty("text", "Subtotal"); addProperty("variant", "body") })
+        comps.add(JsonObject().apply { 
+            addProperty("id", "subtotal-value")
+            addProperty("component", "Text")
+            // We'll calculate tax manually for now in builder, but ideally data model should have it
+            addProperty("text", "₹${(totalAmount / 1.05).toInt()}") 
+            addProperty("variant", "body")
+        })
+
+        // Tax Row
+        comps.add(JsonObject().apply {
+            addProperty("id", "tax-row")
+            addProperty("component", "Row")
+            val ch = JsonArray()
+            ch.add("tax-label"); ch.add("tax-value")
+            add("children", ch)
+            addProperty("justify", "spaceBetween")
+        })
+        comps.add(JsonObject().apply { addProperty("id", "tax-label"); addProperty("component", "Text"); addProperty("text", "GST (5%)"); addProperty("variant", "body") })
+        comps.add(JsonObject().apply { 
+            addProperty("id", "tax-value")
+            addProperty("component", "Text")
+            addProperty("text", "₹${(totalAmount - (totalAmount / 1.05)).toInt()}")
+            addProperty("variant", "body")
+        })
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "divider-2")
+            addProperty("component", "Divider")
+        })
+
+        // Grand Total Row
+        comps.add(JsonObject().apply {
+            addProperty("id", "total-row")
+            addProperty("component", "Row")
+            val ch = JsonArray()
+            ch.add("total-label"); ch.add("total-value")
+            add("children", ch)
+            addProperty("justify", "spaceBetween")
+        })
+        comps.add(JsonObject().apply { addProperty("id", "total-label"); addProperty("component", "Text"); addProperty("text", "Grand Total"); addProperty("variant", "h4") })
+        comps.add(JsonObject().apply { addProperty("id", "total-value"); addProperty("component", "Text"); addProperty("text", "₹$totalAmount"); addProperty("variant", "h4") })
 
         comps.add(JsonObject().apply {
             addProperty("id", "checkout-btn")
@@ -413,34 +471,61 @@ class A2UIResponseBuilder {
 
         comps.add(JsonObject().apply {
             addProperty("id", "root")
+            addProperty("component", "Card")
+            addProperty("child", "booking-col")
+        })
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "booking-col")
             addProperty("component", "Column")
             val ch = JsonArray()
-            ch.add("header")
+            ch.add("header-row")
+            ch.add("divider")
             ch.add("booking-id")
-            ch.add("booking-details")
+            ch.add("guest-row")
+            ch.add("date-row")
+            ch.add("time-row")
+            ch.add("restaurant-name")
             add("children", ch)
+            addProperty("padding", 16)
         })
 
         comps.add(JsonObject().apply {
-            addProperty("id", "header")
-            addProperty("component", "Text")
-            addProperty("text", "✓ Table Booking Confirmed")
-            addProperty("variant", "h2")
+            addProperty("id", "header-row")
+            addProperty("component", "Row")
+            val ch = JsonArray()
+            ch.add("check-icon")
+            ch.add("header-text")
+            add("children", ch)
+            addProperty("align", "center")
         })
 
-        comps.add(JsonObject().apply {
-            addProperty("id", "booking-id")
-            addProperty("component", "Text")
-            addProperty("text", "Booking ID: ${booking.id}")
-            addProperty("variant", "subtitle")
-        })
+        comps.add(JsonObject().apply { addProperty("id", "check-icon"); addProperty("component", "Icon"); addProperty("name", "check_circle"); addProperty("tint", "#4CAF50") })
+        comps.add(JsonObject().apply { addProperty("id", "header-text"); addProperty("component", "Text"); addProperty("text", " Booking Confirmed"); addProperty("variant", "h5"); addProperty("color", "#4CAF50") })
 
-        comps.add(JsonObject().apply {
-            addProperty("id", "booking-details")
-            addProperty("component", "Text")
-            addProperty("text", "Table for ${booking.numberOfPeople} on ${booking.bookingDate} at ${booking.bookingTime}")
-            addProperty("variant", "body")
-        })
+        comps.add(JsonObject().apply { addProperty("id", "divider"); addProperty("component", "Divider") })
+
+        comps.add(JsonObject().apply { addProperty("id", "booking-id"); addProperty("component", "Text"); addProperty("text", "ID: ${booking.id}"); addProperty("variant", "caption") })
+
+        // Rows for Guest, Date, Time
+        listOf(
+            Triple("guest-row", "group", "${booking.numberOfPeople} Guests"),
+            Triple("date-row", "event", booking.bookingDate),
+            Triple("time-row", "schedule", booking.bookingTime)
+        ).forEach { (id, icon, text) ->
+            comps.add(JsonObject().apply {
+                addProperty("id", id)
+                addProperty("component", "Row")
+                val ch = JsonArray()
+                ch.add("$id-icon"); ch.add("$id-text")
+                add("children", ch)
+                addProperty("align", "center")
+            })
+            comps.add(JsonObject().apply { addProperty("id", "$id-icon"); addProperty("component", "Icon"); addProperty("name", icon); addProperty("size", 16) })
+            comps.add(JsonObject().apply { addProperty("id", "$id-text"); addProperty("component", "Text"); addProperty("text", " $text"); addProperty("variant", "body") })
+        }
+
+        comps.add(JsonObject().apply { addProperty("id", "restaurant-name"); addProperty("component", "Text"); addProperty("text", "Luxe Dining Restaurant"); addProperty("variant", "subtitle"); addProperty("padding", 8) })
 
         update.add("components", comps)
         root.add("updateComponents", update)
@@ -780,6 +865,244 @@ class A2UIResponseBuilder {
         
         val sentimentStr = metrics.sentimentSummary.entries.joinToString(", ") { "${it.key}: ${it.value}" }
         comps.add(JsonObject().apply { addProperty("id", "sentiment-text"); addProperty("component", "Text"); addProperty("text", if (sentimentStr.isEmpty()) "No data" else sentimentStr); addProperty("variant", "body") })
+
+        update.add("components", comps)
+        root.add("updateComponents", update)
+        return gson.toJson(root)
+    }
+
+    /**
+     * CHECKOUT FLOW
+     */
+    private fun buildOrderSummarySchema(surfaceId: String, subtotal: Int, tax: Int, total: Int): String {
+        val root = JsonObject()
+        root.addProperty("version", "v0.10")
+        val update = JsonObject()
+        update.addProperty("surfaceId", surfaceId)
+        val comps = JsonArray()
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "root")
+            addProperty("component", "Card")
+            addProperty("child", "main-col")
+        })
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "main-col")
+            addProperty("component", "Column")
+            val ch = JsonArray()
+            ch.add("title")
+            ch.add("cart-list")
+            ch.add("divider-1")
+            ch.add("subtotal-row")
+            ch.add("tax-row")
+            ch.add("divider-2")
+            ch.add("total-row")
+            ch.add("payment-prompt")
+            ch.add("payment-actions")
+            add("children", ch)
+            addProperty("align", "stretch")
+        })
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "title")
+            addProperty("component", "Text")
+            addProperty("text", "Order Summary")
+            addProperty("variant", "h5")
+        })
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "cart-list")
+            addProperty("component", "List")
+            addProperty("direction", "vertical")
+            val ch = JsonObject()
+            ch.addProperty("path", "/cart-items")
+            ch.addProperty("componentId", "cart-item-row")
+            add("children", ch)
+        })
+
+        // Cart Item Template: Row [Name x Qty, Price]
+        comps.add(JsonObject().apply {
+            addProperty("id", "cart-item-row")
+            addProperty("component", "Row")
+            val ch = JsonArray()
+            ch.add("item-name-qty")
+            ch.add("item-price")
+            add("children", ch)
+            addProperty("justify", "spaceBetween")
+        })
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "item-name-qty")
+            addProperty("component", "Text")
+            val text = JsonObject()
+            text.addProperty("template", "{quantity}x {menuItem/name}")
+            add("text", text)
+            addProperty("variant", "body")
+        })
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "item-price")
+            addProperty("component", "Text")
+            val text = JsonObject()
+            text.addProperty("path", "menuItem/price/amount")
+            add("text", text)
+            addProperty("variant", "body")
+        })
+
+        comps.add(JsonObject().apply { addProperty("id", "divider-1"); addProperty("component", "Divider") })
+
+        // Subtotal
+        comps.add(JsonObject().apply {
+            addProperty("id", "subtotal-row")
+            addProperty("component", "Row")
+            val ch = JsonArray()
+            ch.add("subtotal-label"); ch.add("subtotal-value")
+            add("children", ch)
+            addProperty("justify", "spaceBetween")
+        })
+        comps.add(JsonObject().apply { addProperty("id", "subtotal-label"); addProperty("component", "Text"); addProperty("text", "Subtotal"); addProperty("variant", "body") })
+        comps.add(JsonObject().apply { addProperty("id", "subtotal-value"); addProperty("component", "Text"); addProperty("text", "₹$subtotal"); addProperty("variant", "body") })
+
+        // Tax
+        comps.add(JsonObject().apply {
+            addProperty("id", "tax-row")
+            addProperty("component", "Row")
+            val ch = JsonArray()
+            ch.add("tax-label"); ch.add("tax-value")
+            add("children", ch)
+            addProperty("justify", "spaceBetween")
+        })
+        comps.add(JsonObject().apply { addProperty("id", "tax-label"); addProperty("component", "Text"); addProperty("text", "GST (5%)"); addProperty("variant", "body") })
+        comps.add(JsonObject().apply { addProperty("id", "tax-value"); addProperty("component", "Text"); addProperty("text", "₹$tax"); addProperty("variant", "body") })
+
+        comps.add(JsonObject().apply { addProperty("id", "divider-2"); addProperty("component", "Divider") })
+
+        // Grand Total
+        comps.add(JsonObject().apply {
+            addProperty("id", "total-row")
+            addProperty("component", "Row")
+            val ch = JsonArray()
+            ch.add("total-label"); ch.add("total-value")
+            add("children", ch)
+            addProperty("justify", "spaceBetween")
+        })
+        comps.add(JsonObject().apply { addProperty("id", "total-label"); addProperty("component", "Text"); addProperty("text", "Grand Total"); addProperty("variant", "h4") })
+        comps.add(JsonObject().apply { addProperty("id", "total-value"); addProperty("component", "Text"); addProperty("text", "₹$total"); addProperty("variant", "h4") })
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "payment-prompt")
+            addProperty("component", "Text")
+            addProperty("text", "How would you like to pay?")
+            addProperty("variant", "subtitle")
+            addProperty("padding", 16)
+        })
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "payment-actions")
+            addProperty("component", "Column")
+            val ch = JsonArray()
+            ch.add("pay-now-btn")
+            ch.add("pay-later-btn")
+            add("children", ch)
+            addProperty("align", "stretch")
+            addProperty("spacing", 8)
+        })
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "pay-now-btn")
+            addProperty("component", "Button")
+            addProperty("text", "💳 Pay Now")
+            addProperty("variant", "primary")
+            val action = JsonObject()
+            val event = JsonObject()
+            event.addProperty("name", "payNow")
+            val ctx = JsonObject()
+            ctx.addProperty("amount", total)
+            event.add("context", ctx)
+            action.add("event", event)
+            add("action", action)
+        })
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "pay-later-btn")
+            addProperty("component", "Button")
+            addProperty("text", "💵 COD")
+            addProperty("variant", "secondary")
+            val action = JsonObject()
+            val event = JsonObject()
+            event.addProperty("name", "payLater")
+            val ctx = JsonObject()
+            ctx.addProperty("amount", total)
+            event.add("context", ctx)
+            action.add("event", event)
+            add("action", action)
+        })
+
+        update.add("components", comps)
+        root.add("updateComponents", update)
+        return gson.toJson(root)
+    }
+
+    private fun buildPaymentChoiceSchema(surfaceId: String, total: Int): String {
+        // Reuse same logic as summary or simpler
+        return buildSimpleMessage(surfaceId, "Payment choice for ₹$total")
+    }
+
+    private fun buildOrderPlacedSchema(surfaceId: String, order: Order): String {
+        val root = JsonObject()
+        root.addProperty("version", "v0.10")
+        val update = JsonObject()
+        update.addProperty("surfaceId", surfaceId)
+        val comps = JsonArray()
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "root")
+            addProperty("component", "Card")
+            addProperty("child", "content-col")
+        })
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "content-col")
+            addProperty("component", "Column")
+            val ch = JsonArray()
+            ch.add("success-icon")
+            ch.add("title")
+            ch.add("order-id")
+            ch.add("amount")
+            ch.add("action-row")
+            add("children", ch)
+            addProperty("align", "center")
+            addProperty("padding", 20)
+        })
+
+        comps.add(JsonObject().apply { addProperty("id", "success-icon"); addProperty("component", "Icon"); addProperty("name", "check_circle"); addProperty("size", 48); addProperty("tint", "#4CAF50") })
+        comps.add(JsonObject().apply { addProperty("id", "title"); addProperty("component", "Text"); addProperty("text", "Order Placed Successfully!"); addProperty("variant", "h5") })
+        comps.add(JsonObject().apply { addProperty("id", "order-id"); addProperty("component", "Text"); addProperty("text", "Order ID: ${order.id.value}"); addProperty("variant", "body") })
+        comps.add(JsonObject().apply { addProperty("id", "amount"); addProperty("component", "Text"); addProperty("text", "Amount Paid: ₹${order.totalAmount.amount}"); addProperty("variant", "subtitle") })
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "action-row")
+            addProperty("component", "Row")
+            val ch = JsonArray()
+            ch.add("track-btn")
+            add("children", ch)
+        })
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "track-btn")
+            addProperty("component", "Button")
+            addProperty("text", "Track Order")
+            addProperty("variant", "primary")
+            val action = JsonObject()
+            val event = JsonObject()
+            event.addProperty("name", "trackOrder")
+            val ctx = JsonObject()
+            ctx.addProperty("orderId", order.id.value)
+            event.add("context", ctx)
+            action.add("event", event)
+            add("action", action)
+        })
 
         update.add("components", comps)
         root.add("updateComponents", update)

@@ -30,6 +30,7 @@ enum class UserIntent {
     ORDER_HISTORY,
     ORDER_TRACKING,
     ORDER_REPEAT,
+    ORDER_CANCEL,
     OFFER_LIST,
     OFFER_APPLY,
     CHECKOUT,
@@ -37,5 +38,6 @@ enum class UserIntent {
     FEEDBACK_VIEW,
     FEEDBACK_UPDATE,
     FEEDBACK_METRICS,
+    AI_LIMIT_REACHED,
     UNKNOWN
 }

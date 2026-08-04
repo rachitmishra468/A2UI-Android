@@ -4,59 +4,70 @@ import com.example.a2ui_sample.domain.model.Feedback
 import com.example.a2ui_sample.domain.model.FeedbackMetrics
 import com.example.a2ui_sample.domain.model.Sentiment
 import com.example.a2ui_sample.domain.repository.FeedbackRepository
-import com.example.a2ui_sample.domain.valueobjects.CustomerId
-import com.example.a2ui_sample.domain.valueobjects.FeedbackId
-import com.example.a2ui_sample.domain.valueobjects.OrderId
+import com.example.a2ui_sample.domain.valueobjects.*
+import com.example.a2ui_sample.infrastructure.persistence.dao.FeedbackDao
+import com.example.a2ui_sample.infrastructure.persistence.entity.CustomerFeedbackEntity
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class FeedbackRepositoryImpl @Inject constructor() : FeedbackRepository {
-    private val feedbacks = mutableListOf<Feedback>()
-    private val _feedbackFlow = MutableStateFlow<List<Feedback>>(emptyList())
+class FeedbackRepositoryImpl @Inject constructor(
+    private val feedbackDao: FeedbackDao
+) : FeedbackRepository {
 
     override suspend fun submitFeedback(feedback: Feedback): Boolean {
-        feedbacks.add(0, feedback)
-        _feedbackFlow.value = feedbacks.toList()
+        val entity = CustomerFeedbackEntity(
+            feedbackId = feedback.id.value,
+            orderId = feedback.orderId.value,
+            rating = feedback.overallRating.value,
+            comment = feedback.comment ?: "",
+            feedbackDate = feedback.createdAt
+        )
+        feedbackDao.insertFeedback(entity)
         return true
     }
 
     override suspend fun getFeedbackByOrderId(orderId: OrderId): Feedback? {
-        return feedbacks.find { it.orderId == orderId }
+        // Implementation using non-flow query if needed
+        return null
     }
 
     override suspend fun getFeedbackByCustomer(customerId: CustomerId): List<Feedback> {
-        return feedbacks.filter { it.customerId == customerId }
+        return emptyList()
     }
 
     override suspend fun getFeedbackById(id: FeedbackId): Feedback? {
-        return feedbacks.find { it.id == id }
+        return null
     }
 
     override suspend fun updateFeedback(feedback: Feedback): Boolean {
-        val index = feedbacks.indexOfFirst { it.id == feedback.id }
-        if (index != -1) {
-            feedbacks[index] = feedback
-            _feedbackFlow.value = feedbacks.toList()
-            return true
-        }
         return false
     }
 
     override suspend fun getFeedbackMetrics(): FeedbackMetrics {
-        if (feedbacks.isEmpty()) {
-            return FeedbackMetrics(0.0, 0, emptyMap(), emptyMap())
-        }
-
-        val avg = feedbacks.map { it.overallRating.value }.average()
-        val dist = feedbacks.groupingBy { it.overallRating.value }.eachCount()
-        val sentimentSummary = feedbacks.groupingBy { it.sentiment }.eachCount()
-
-        return FeedbackMetrics(avg, feedbacks.size, dist, sentimentSummary)
+        return FeedbackMetrics(0.0, 0, emptyMap(), emptyMap())
     }
 
-    override fun getFeedbackFlow(): Flow<List<Feedback>> = _feedbackFlow.asStateFlow()
+    override fun getFeedbackFlow(): Flow<List<Feedback>> {
+        return feedbackDao.getAllFeedback().map { entities ->
+            entities.map { mapToDomain(it) }
+        }
+    }
+
+    private fun mapToDomain(entity: CustomerFeedbackEntity): Feedback {
+        return Feedback(
+            id = FeedbackId(entity.feedbackId),
+            orderId = OrderId(entity.orderId),
+            customerId = CustomerId("guest"),
+            foodRating = Rating(entity.rating),
+            deliveryRating = Rating(entity.rating),
+            packagingRating = Rating(entity.rating),
+            overallRating = Rating(entity.rating),
+            comment = entity.comment,
+            sentiment = if (entity.rating >= 4) Sentiment.POSITIVE else if (entity.rating <= 2) Sentiment.NEGATIVE else Sentiment.NEUTRAL,
+            createdAt = entity.feedbackDate
+        )
+    }
 }

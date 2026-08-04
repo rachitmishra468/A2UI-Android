@@ -15,5 +15,8 @@ data class MenuItemEntity(
     val imageUrl: String,
     val rating: Double,
     val reviewCount: Int,
-    val isAvailable: Boolean
+    val calories: Int,
+    val tags: List<String>,
+    val isBestSeller: Boolean,
+    val isAvailable: Boolean,
 )

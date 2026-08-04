@@ -76,6 +76,28 @@ class DataModelProcessor {
                 getValue(surfaceId, resolvedPath)
             }
             is DynamicValue.FunctionValue<*> -> resolveFunctionCall(value.functionCall)
+            is DynamicValue.TemplateValue -> resolveTemplate(surfaceId, value.template, scopePath)
+        }
+    }
+
+    private fun resolveTemplate(surfaceId: String, template: String, scopePath: String?): String {
+        // Regex for {path}, ${path}, or %{path}
+        val regex = """[$%]?\{([^}]+)\}""".toRegex()
+        return template.replace(regex) { matchResult ->
+            val path = matchResult.groupValues[1]
+            val resolvedPath = if (scopePath != null && !path.startsWith("/")) {
+                "$scopePath/$path"
+            } else {
+                path
+            }
+            val value = getValue(surfaceId, resolvedPath)
+            
+            android.util.Log.d("A2UI_DATA", "[ORDER_SUMMARY] Resolving template path: $path -> $value")
+            
+            when (value) {
+                null -> if (path.contains("name")) "Unknown Item" else if (path.contains("quantity")) "1" else ""
+                else -> value.toString()
+            }
         }
     }
 

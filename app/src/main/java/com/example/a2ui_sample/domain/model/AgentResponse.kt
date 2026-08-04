@@ -14,6 +14,12 @@ sealed class AgentResponse {
     data class CartView(val items: List<CartItem>, val totalAmount: Int) : AgentResponse()
     
     data class OrderConfirmation(val order: Order) : AgentResponse()
+    
+    // Checkout Flow
+    data class OrderSummary(val items: List<CartItem>, val subtotal: Int, val tax: Int, val total: Int) : AgentResponse()
+    data class PaymentChoice(val total: Int) : AgentResponse()
+    data class NavigateToPayment(val orderId: String, val amount: Int) : AgentResponse()
+    data class OrderPlaced(val order: Order) : AgentResponse()
 
     data class DeliveryUpdate(val delivery: Delivery, val order: Order) : AgentResponse()
 

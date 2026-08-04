@@ -9,7 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -17,8 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.a2ui_sample.domain.model.TableBooking
-import com.example.a2ui_sample.domain.valueobjects.ReservationStatus
+import com.example.a2ui_sample.domain.model.Reservation
 import com.example.a2ui_sample.presentation.viewmodel.RestaurantMainViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -27,7 +26,11 @@ fun BookingHistoryScreen(
     onBack: () -> Unit,
     viewModel: RestaurantMainViewModel = hiltViewModel()
 ) {
-    val bookings = viewModel.getBookings()
+    val bookings by viewModel.allBookings.collectAsState(initial = emptyList())
+    // Requirement 7: Sort by latest booking first
+    val sortedBookings = remember(bookings) {
+        bookings.sortedByDescending { it.createdAt }
+    }
 
     Scaffold(
         topBar = {
@@ -41,18 +44,15 @@ fun BookingHistoryScreen(
             )
         }
     ) { padding ->
-        if (bookings.isEmpty()) {
-            EmptyState("No bookings found", Icons.Default.CalendarToday, padding)
+        if (sortedBookings.isEmpty()) {
+            EmptyBookingsView()
         } else {
             LazyColumn(
-                modifier = Modifier
-                    .padding(padding)
-                    .fillMaxSize()
-                    .background(Color(0xFFF8F8F8)),
+                modifier = Modifier.padding(padding).fillMaxSize().background(Color(0xFFF8F8F8)),
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                items(bookings) { booking ->
+                items(sortedBookings, key = { it.id.value }) { booking ->
                     BookingCard(booking)
                 }
             }
@@ -61,66 +61,97 @@ fun BookingHistoryScreen(
 }
 
 @Composable
-fun BookingCard(booking: TableBooking) {
+fun BookingCard(booking: Reservation) {
+    val statusColor = getBookingStatusColor(booking.status.name)
+    
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(booking.bookingDate, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                StatusBadge(booking.status)
+                Column {
+                    Text(booking.restaurantName, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
+                    Text("ID: ${booking.id.value.take(8).uppercase()}", fontSize = 12.sp, color = Color.Gray)
+                }
+                
+                Surface(
+                    color = statusColor.copy(alpha = 0.1f),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        booking.status.name,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        color = statusColor,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
+                    )
+                }
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.AccessTime, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.Gray)
-                Text(booking.bookingTime, modifier = Modifier.padding(start = 8.dp), color = Color.Gray)
-                Spacer(modifier = Modifier.width(16.dp))
-                Icon(Icons.Default.People, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.Gray)
-                Text("${booking.numberOfPeople} People", modifier = Modifier.padding(start = 8.dp), color = Color.Gray)
+            
+            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.5.dp)
+
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                // Guests
+                BookingDetailItem(Icons.Default.People, "${booking.partySize} Guests")
+                // Date & Time
+                val sdf = java.text.SimpleDateFormat("dd MMM, HH:mm", java.util.Locale.US)
+                BookingDetailItem(Icons.Default.Schedule, sdf.format(java.util.Date(booking.timeSlot.startMillis)))
             }
+
             Spacer(modifier = Modifier.height(12.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Table #${booking.tableNumber}", fontWeight = FontWeight.SemiBold)
-                Spacer(modifier = Modifier.weight(1f))
-                Text("ID: ${booking.id}", fontSize = 12.sp, color = Color.LightGray)
+
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                // Source label (Requirement 4)
+                Surface(
+                    color = Color.LightGray.copy(alpha = 0.2f),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text(
+                        text = "Source: ${booking.source}",
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        fontSize = 10.sp,
+                        color = Color.DarkGray
+                    )
+                }
+                
+                val createdSdf = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.US)
+                Text("Booked on: ${createdSdf.format(java.util.Date(booking.createdAt))}", fontSize = 10.sp, color = Color.Gray)
             }
         }
     }
 }
 
 @Composable
-fun StatusBadge(status: ReservationStatus) {
-    val color = when(status) {
-        ReservationStatus.CONFIRMED -> Color(0xFF4CAF50)
-        ReservationStatus.PENDING -> Color(0xFFFF9800)
-        ReservationStatus.CANCELLED -> Color(0xFFF44336)
-        ReservationStatus.COMPLETED -> Color(0xFF2196F3)
-    }
-    Surface(
-        color = color.copy(alpha = 0.1f),
-        shape = RoundedCornerShape(4.dp)
-    ) {
-        Text(
-            status.name,
-            color = color,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-        )
+fun BookingDetailItem(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(text, fontSize = 14.sp, fontWeight = FontWeight.Medium)
     }
 }
 
 @Composable
-fun EmptyState(message: String, icon: androidx.compose.ui.graphics.vector.ImageVector, padding: PaddingValues) {
+fun EmptyBookingsView() {
     Column(
-        modifier = Modifier.fillMaxSize().padding(padding),
+        modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(icon, contentDescription = null, modifier = Modifier.size(100.dp), tint = Color.LightGray)
+        Icon(Icons.Default.EventBusy, contentDescription = null, modifier = Modifier.size(80.dp), tint = Color.LightGray)
         Spacer(modifier = Modifier.height(16.dp))
-        Text(message, fontSize = 20.sp, color = Color.Gray)
+        Text("No bookings found", fontSize = 18.sp, color = Color.Gray)
+    }
+}
+
+private fun getBookingStatusColor(status: String): Color {
+    return when (status.uppercase()) {
+        "CONFIRMED" -> Color(0xFF4CAF50)
+        "PENDING" -> Color(0xFFFF9800)
+        "CANCELLED" -> Color(0xFFF44336)
+        "COMPLETED" -> Color(0xFF2196F3)
+        else -> Color.Gray
     }
 }

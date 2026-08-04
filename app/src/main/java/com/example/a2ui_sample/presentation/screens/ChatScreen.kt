@@ -31,6 +31,10 @@ import com.example.a2ui_sample.presentation.viewmodel.RestaurantMainViewModel
 import com.example.a2ui_sample.presentation.viewmodel.UiMessage
 import kotlinx.coroutines.flow.collectLatest
 import org.a2ui.compose.rendering.A2UIRenderer
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.ui.graphics.graphicsLayer
+import com.example.a2ui_sample.presentation.viewmodel.ChatLoadingState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -87,7 +91,7 @@ fun ChatScreen(
     // Auto-scroll to bottom
     LaunchedEffect(uiMessages.size) {
         if (uiMessages.isNotEmpty()) {
-            listState.animateScrollToItem(uiMessages.size - 1)
+            listState.animateScrollToItem(uiMessages.size)
         }
     }
 
@@ -147,6 +151,20 @@ fun ChatScreen(
                 ) { message ->
                     ChatBubble(message, viewModel.renderer)
                 }
+
+                // Loading State
+                item {
+                    val loadingState by viewModel.loadingState.collectAsState()
+                    AnimatedVisibility(
+                        visible = loadingState != null,
+                        enter = fadeIn() + expandVertically(),
+                        exit = fadeOut() + shrinkVertically()
+                    ) {
+                        loadingState?.let { state ->
+                            ProcessingBubble(state)
+                        }
+                    }
+                }
             }
 
             // 2. Quick Actions
@@ -165,6 +183,98 @@ fun ChatScreen(
                 onVoiceInput = onVoiceInputClick
             )
         }
+    }
+}
+
+@Composable
+fun ProcessingBubble(state: ChatLoadingState) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        horizontalAlignment = Alignment.Start
+    ) {
+        Card(
+            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 0.dp, bottomEnd = 16.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+            modifier = Modifier.widthIn(max = 280.dp)
+        ) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    TypingIndicator()
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = state.status,
+                        fontSize = 14.sp,
+                        color = Color.Gray,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+                
+                // If we have skeleton data or multi-steps, we could show them here
+                Spacer(modifier = Modifier.height(8.dp))
+                SkeletonCard()
+            }
+        }
+    }
+}
+
+@Composable
+fun TypingIndicator() {
+    val infiniteTransition = rememberInfiniteTransition()
+    val dotCount = 3
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        for (i in 0 until dotCount) {
+            val scale by infiniteTransition.animateFloat(
+                initialValue = 0.6f,
+                targetValue = 1f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(600, easing = LinearEasing),
+                    repeatMode = RepeatMode.Reverse,
+                    initialStartOffset = StartOffset(i * 200)
+                )
+            )
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .graphicsLayer {
+                        scaleX = scale
+                        scaleY = scale
+                    }
+                    .background(MaterialTheme.colorScheme.primary, CircleShape)
+            )
+        }
+    }
+}
+
+@Composable
+fun SkeletonCard() {
+    val infiniteTransition = rememberInfiniteTransition()
+    val alpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 0.7f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000),
+            repeatMode = RepeatMode.Reverse
+        )
+    )
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(0.8f)
+                .height(14.dp)
+                .background(Color.LightGray.copy(alpha = alpha), RoundedCornerShape(4.dp))
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(0.5f)
+                .height(14.dp)
+                .background(Color.LightGray.copy(alpha = alpha), RoundedCornerShape(4.dp))
+        )
     }
 }
 
@@ -209,30 +319,36 @@ fun A2UIPayloadRenderer(json: String, renderer: A2UIRenderer) {
         try {
             val jsonObj = com.google.gson.JsonParser.parseString(json).asJsonObject
             when {
-                jsonObj.has("createSurface") -> jsonObj.getAsJsonObject("createSurface").get("surfaceId").asString
+                jsonObj.has("createSurface") -> {
+                    val id = jsonObj.getAsJsonObject("createSurface").get("surfaceId").asString
+                    android.util.Log.d("A2UI_RESTORE", "Surface Created: $id")
+                    id
+                }
                 jsonObj.has("updateComponents") -> jsonObj.getAsJsonObject("updateComponents").get("surfaceId").asString
                 jsonObj.has("updateDataModel") -> jsonObj.getAsJsonObject("updateDataModel").get("surfaceId").asString
                 else -> null
             }
         } catch (e: Exception) {
+            android.util.Log.e("A2UI_RESTORE", "Error parsing JSON: ${e.message}")
             null
         }
     }
 
-    // Note: processMessage is now handled in RestaurantMainViewModel for better sequencing
-    
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-        surfaceId?.let { id ->
-            android.util.Log.d("A2UI_FLOW", "9. Rendering surface: $id")
-            val content = renderer.renderSurface(id)
-            content.invoke()
-        } ?: run {
-            android.util.Log.w("A2UI_FLOW", "9. No surfaceId found in JSON")
-            // Fallback: render all if surfaceId not found
-            renderer.getAllSurfaceIds().forEach { id ->
-                val content = renderer.renderSurface(id)
+        if (surfaceId != null) {
+            val surfaceState = renderer.getSurfaceState(surfaceId)
+            
+            if (surfaceState is org.a2ui.compose.rendering.A2UIRendererState.Loading) {
+                SkeletonCard()
+            } else {
+                android.util.Log.d("A2UI_RESTORE", "Rendering Started for $surfaceId")
+                val content = renderer.renderSurface(surfaceId)
                 content.invoke()
+                android.util.Log.d("A2UI_RESTORE", "Rendering Completed for $surfaceId")
             }
+        } else {
+            android.util.Log.e("A2UI_RESTORE", "Missing JSON or invalid surfaceId")
+            Text("Error: Could not render UI component", color = Color.Red, fontSize = 12.sp, modifier = Modifier.padding(8.dp))
         }
     }
 }

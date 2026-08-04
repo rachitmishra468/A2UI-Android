@@ -139,6 +139,7 @@ class ComponentRegistry(private val renderer: A2UIRenderer) {
         // ==================== Text ====================
         register("Text") { component, context ->
             val resolvedText = resolve(context, component.text)
+
             val text = when (resolvedText) {
                 null -> ""
                 is String -> resolvedText
@@ -1126,11 +1127,20 @@ class ComponentRegistry(private val renderer: A2UIRenderer) {
         val dataPath = template.path
         val dataItems = resolve(context, DynamicValue.PathValue<Any>(dataPath)) as? List<*>
 
+        android.util.Log.d("A2UI_DATA", "[ORDER_SUMMARY] Cart Items Count: ${dataItems?.size ?: 0}")
+
         dataItems?.let { items ->
-            items.forEachIndexed { index, _ ->
+            items.forEachIndexed { index, item ->
                 renderer.getComponent(context.surfaceId, template.componentId)?.let { templateComponent ->
                     // ✅ Collection Scope
                     val itemScope = "$dataPath/$index"
+                    
+                    if (item is Map<*, *>) {
+                        val name = (item["menuItem"] as? Map<*, *>)?.get("name") ?: "Unknown Item"
+                        val quantity = item["quantity"] ?: "1"
+                        android.util.Log.d("A2UI_DATA", "[ORDER_SUMMARY] Item index $index: name=$name, quantity=$quantity")
+                    }
+
                     render(templateComponent, context.copy(
                         renderDepth = context.renderDepth + 1,
                         scopePath = itemScope

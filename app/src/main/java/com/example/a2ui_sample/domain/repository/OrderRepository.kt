@@ -14,6 +14,7 @@ interface OrderRepository {
     suspend fun placeOrder(order: Order): OrderId
     suspend fun getOrderById(id: OrderId): Order?
     fun getActiveOrders(): Flow<List<Order>>
+    fun getAllOrders(): Flow<List<Order>>
     suspend fun updateOrderStatus(id: OrderId, status: OrderStatus)
     suspend fun getOrderHistory(customerId: CustomerId): List<Order>
 }

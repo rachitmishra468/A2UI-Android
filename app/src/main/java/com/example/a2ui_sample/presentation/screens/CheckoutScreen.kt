@@ -17,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import kotlinx.coroutines.launch
 import com.example.a2ui_sample.presentation.viewmodel.RestaurantMainViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -26,10 +27,12 @@ fun CheckoutScreen(
     onOrderPlaced: (String) -> Unit,
     viewModel: RestaurantMainViewModel = hiltViewModel()
 ) {
-    val cartItems = viewModel.getCartItems()
-    val total = viewModel.getCartTotal()
+    val cartItems by viewModel.cartItems.collectAsState()
+    val total = cartItems.sumOf { it.quantity * it.menuItem.price.amount }
     var selectedPayment by remember { mutableStateOf("UPI") }
     var selectedType by remember { mutableStateOf("Delivery") }
+
+    val scope = rememberCoroutineScope()
 
     Scaffold(
         topBar = {
@@ -129,9 +132,11 @@ fun CheckoutScreen(
             ) {
                 Button(
                     onClick = {
-                        val order = viewModel.checkout()
-                        if (order != null) {
-                            onOrderPlaced(order.id.value)
+                        scope.launch {
+                            val order = viewModel.checkout()
+                            if (order != null) {
+                                onOrderPlaced(order.id.value)
+                            }
                         }
                     },
                     modifier = Modifier

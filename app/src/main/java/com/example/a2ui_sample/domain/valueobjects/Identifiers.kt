@@ -68,6 +68,19 @@ data class TableId(
 }
 
 /**
+ * RestaurantId - Value Object for Restaurant Identity
+ */
+data class RestaurantId(
+    val value: String = UUID.randomUUID().toString()
+) {
+    init {
+        require(value.isNotBlank()) { "RestaurantId cannot be blank" }
+    }
+
+    override fun toString(): String = "REST-${value.take(6).uppercase()}"
+}
+
+/**
  * CustomerId - Value Object for Customer Identity
  */
 data class CustomerId(

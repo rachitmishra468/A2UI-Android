@@ -157,6 +157,9 @@ class DynamicValueSerializer<T>(private val tSerializer: KSerializer<T>) : KSeri
                     }
                 }
             )
+            is DynamicValue.TemplateValue -> jsonEncoder.encodeJsonElement(
+                buildJsonObject { put("template", JsonPrimitive(value.template)) }
+            )
         }
     }
 
@@ -197,6 +200,8 @@ class DynamicValueSerializer<T>(private val tSerializer: KSerializer<T>) : KSeri
                     returnType = fc["returnType"]?.jsonPrimitive?.contentOrNull
                 ))
             }
+            element is JsonObject && "template" in element ->
+                DynamicValue.TemplateValue(element["template"]!!.jsonPrimitive.content)
             else -> DynamicValue.LiteralValue(element.toString() as T)
         }
     }
@@ -236,6 +241,7 @@ class Component(
     val filterable: Boolean? = null,
     val placeholder: @Serializable(with = StringDynamicValueSerializer::class) DynamicValue<String>? = null,
     val name: @Serializable(with = StringDynamicValueSerializer::class) DynamicValue<String>? = null,
+    val template: String? = null,
     val fit: String? = null,
     val trigger: String? = null,
     val content: String? = null,
@@ -310,4 +316,5 @@ sealed class DynamicValue<T> {
     data class LiteralValue<T>(val literal: T) : DynamicValue<T>()
     data class PathValue<T>(val path: String) : DynamicValue<T>()
     data class FunctionValue<T>(val functionCall: FunctionCall) : DynamicValue<T>()
+    data class TemplateValue<T>(val template: String) : DynamicValue<T>()
 }

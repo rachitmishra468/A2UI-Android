@@ -30,9 +30,13 @@ class ReservationViewModel @Inject constructor(
             val reservation = Reservation(
                 id = ReservationId(),
                 customerId = CustomerId("MANUAL_USER"),
+                restaurantId = RestaurantId("rest_1"),
+                restaurantName = "The Grand Kitchen",
                 tableId = null, // To be assigned by domain service
                 timeSlot = TimeSlot(startTime, startTime + 3600000),
-                partySize = partySize
+                partySize = partySize,
+                status = ReservationStatus.CONFIRMED,
+                source = BookingSource.APP
             )
             createReservationUseCase(reservation)
             _reservationState.value = ReservationStatus.CONFIRMED

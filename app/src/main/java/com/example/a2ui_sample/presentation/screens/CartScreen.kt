@@ -28,6 +28,7 @@ import com.example.a2ui_sample.presentation.viewmodel.RestaurantMainViewModel
 fun CartScreen(
     onBack: () -> Unit,
     onCheckout: () -> Unit,
+    onNavigateToOrderHistory: () -> Unit,
     viewModel: RestaurantMainViewModel = hiltViewModel()
 ) {
     val cartItems by viewModel.cartItems.collectAsState()
@@ -40,6 +41,11 @@ fun CartScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = onNavigateToOrderHistory) {
+                        Icon(Icons.Default.History, contentDescription = "Order History")
                     }
                 }
             )

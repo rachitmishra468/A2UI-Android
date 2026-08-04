@@ -51,7 +51,7 @@ class MenuRepositoryImpl private constructor(private val context: Context) : Men
         }
     }
 
-    override fun addToCart(menuItemId: Int): CartItem? {
+    override suspend fun addToCart(menuItemId: Int): CartItem? {
         val item = getMenuItems().find { it.id == menuItemId } ?: return null
         val existing = cart.find { it.menuItem.id == menuItemId }
         val result = if (existing != null) {
@@ -66,23 +66,23 @@ class MenuRepositoryImpl private constructor(private val context: Context) : Men
         return result
     }
 
-    override fun getCart(): List<CartItem> = cart
+    override suspend fun getCart(): List<CartItem> = cart
 
     override fun getCartFlow() = _cartFlow.asStateFlow()
 
-    override fun getCartTotal(): Int = cart.sumOf { (it.menuItem.price.amount * it.quantity) }
+    override suspend fun getCartTotal(): Int = cart.sumOf { (it.menuItem.price.amount * it.quantity) }
 
-    override fun addBooking(booking: TableBooking) {
+    override suspend fun addBooking(booking: TableBooking) {
         bookings.add(0, booking)
     }
 
-    override fun getBookings(): List<TableBooking> = bookings.toList()
+    override suspend fun getBookings(): List<TableBooking> = bookings.toList()
 
-    override fun cancelBooking(bookingId: String): Boolean {
+    override suspend fun cancelBooking(bookingId: String): Boolean {
         return bookings.removeIf { it.id == bookingId || it.bookingId == bookingId }
     }
 
-    override fun updateCartQuantity(menuItemId: Int, quantity: Int): CartItem? {
+    override suspend fun updateCartQuantity(menuItemId: Int, quantity: Int): CartItem? {
         val existing = cart.find { it.menuItem.id == menuItemId } ?: return null
         val result = if (quantity <= 0) {
             cart.remove(existing)
@@ -95,7 +95,7 @@ class MenuRepositoryImpl private constructor(private val context: Context) : Men
         return result
     }
 
-    override fun removeFromCart(menuItemId: Int): Boolean {
+    override suspend fun removeFromCart(menuItemId: Int): Boolean {
         val existing = cart.find { it.menuItem.id == menuItemId } ?: return false
         val removed = cart.remove(existing)
         if (removed) {
@@ -104,29 +104,29 @@ class MenuRepositoryImpl private constructor(private val context: Context) : Men
         return removed
     }
 
-    override fun clearCart() {
+    override suspend fun clearCart() {
         cart.clear()
         _cartFlow.value = emptyList()
     }
 
-    override fun placeOrder(order: Order): Boolean {
+    override suspend fun placeOrder(order: Order): Boolean {
         orders.add(0, order)
         clearCart()
         return true
     }
 
-    override fun getCurrentOrders(): List<Order> = orders.filter { it.status != OrderStatus.COMPLETED }
+    override suspend fun getCurrentOrders(): List<Order> = orders.filter { it.status != OrderStatus.COMPLETED }
 
-    override fun getPastOrders(): List<Order> = orders.filter { it.status == OrderStatus.COMPLETED }
+    override suspend fun getPastOrders(): List<Order> = orders.filter { it.status == OrderStatus.COMPLETED }
 
-    override fun completeOrder(orderId: String) {
+    override suspend fun completeOrder(orderId: String) {
         val index = orders.indexOfFirst { it.id.value == orderId }
         if (index != -1) {
             orders[index] = orders[index].copy(status = OrderStatus.COMPLETED)
         }
     }
 
-    override fun getDeliveryStatus(orderId: String): Delivery? {
+    override suspend fun getDeliveryStatus(orderId: String): Delivery? {
         val order = orders.find { it.id.value == orderId } ?: return null
         return Delivery(
             id = DeliveryId("DEL-${orderId.takeLast(4)}"),

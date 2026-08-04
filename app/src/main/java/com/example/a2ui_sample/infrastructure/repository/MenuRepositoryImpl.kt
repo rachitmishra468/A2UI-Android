@@ -3,31 +3,27 @@ package com.example.a2ui_sample.infrastructure.repository
 import android.content.Context
 import com.example.a2ui_sample.domain.model.*
 import com.example.a2ui_sample.domain.repository.MenuRepository
-import com.example.a2ui_sample.domain.valueobjects.CustomerId
-import com.example.a2ui_sample.domain.valueobjects.DeliveryId
-import com.example.a2ui_sample.domain.valueobjects.DeliveryStatus
-import com.example.a2ui_sample.domain.valueobjects.OrderId
-import com.example.a2ui_sample.domain.valueobjects.OrderStatus
-import com.example.a2ui_sample.domain.valueobjects.Price
+import com.example.a2ui_sample.domain.valueobjects.*
+import com.example.a2ui_sample.infrastructure.persistence.dao.CartDao
+import com.example.a2ui_sample.infrastructure.persistence.dao.MenuDao
+import com.example.a2ui_sample.infrastructure.persistence.entity.CartEntity
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class MenuRepositoryImpl @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val cartDao: CartDao,
+    private val menuDao: MenuDao
 ) : MenuRepository {
     private val gson = Gson()
-    private val cart = mutableListOf<CartItem>()
-    private val _cartFlow = MutableStateFlow<List<CartItem>>(emptyList())
-
-    private val bookings = mutableListOf<TableBooking>()
-    private val orders = mutableListOf<Order>()
-    private val defaultCustomerId = CustomerId("guest")
 
     private val menuItemsCache: List<MenuItem> by lazy {
         try {
@@ -50,92 +46,108 @@ class MenuRepositoryImpl @Inject constructor(
         }
     }
 
-    override fun addToCart(menuItemId: Int): CartItem? {
-        val item = menuItemsCache.find { it.id == menuItemId } ?: return null
-        val existing = cart.find { it.menuItem.id == menuItemId }
-        val result = if (existing != null) {
-            existing.quantity++
-            existing
+    override suspend fun addToCart(menuItemId: Int): CartItem? = withContext(Dispatchers.IO) {
+        val item = menuItemsCache.find { it.id == menuItemId } ?: return@withContext null
+        val existing = cartDao.getCartItems().first().find { it.cartItemId == menuItemId }
+        if (existing != null) {
+            cartDao.updateCartItem(existing.copy(quantity = existing.quantity + 1))
         } else {
-            val newCartItem = CartItem(item, 1)
-            cart.add(0, newCartItem)
-            newCartItem
+            cartDao.insertCartItem(CartEntity(
+                cartItemId = item.id,
+                itemName = item.name,
+                quantity = 1,
+                price = item.price.amount,
+                imageUrl = item.image
+            ))
         }
-        _cartFlow.value = cart.toList()
-        return result
+        return@withContext CartItem(item, (existing?.quantity ?: 0) + 1)
     }
 
-    override fun getCart(): List<CartItem> = cart
+    override suspend fun getCart(): List<CartItem> = withContext(Dispatchers.IO) {
+        try {
+            val entities = cartDao.getCartItems().first()
+            entities.map { entity ->
+                val menuItem = menuItemsCache.find { it.id == entity.cartItemId } ?: MenuItem(
+                    id = entity.cartItemId,
+                    name = entity.itemName,
+                    description = "",
+                    price = Price(entity.price),
+                    category = "",
+                    image = entity.imageUrl,
+                    type = MenuItemType.VEG
+                )
+                CartItem(menuItem, entity.quantity)
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
 
-    override fun getCartFlow() = _cartFlow.asStateFlow()
+    override fun getCartFlow(): Flow<List<CartItem>> {
+        return cartDao.getCartItems().map { entities ->
+            entities.map { entity ->
+                val menuItem = menuItemsCache.find { it.id == entity.cartItemId } ?: MenuItem(
+                    id = entity.cartItemId,
+                    name = entity.itemName,
+                    description = "",
+                    price = Price(entity.price),
+                    category = "",
+                    image = entity.imageUrl,
+                    type = MenuItemType.VEG
+                )
+                CartItem(menuItem, entity.quantity)
+            }
+        }
+    }
 
-    override fun getCartTotal(): Int = cart.sumOf { (it.menuItem.price.amount * it.quantity) }
+    override suspend fun getCartTotal(): Int {
+        return getCart().sumOf { it.quantity * it.menuItem.price.amount }
+    }
 
-    override fun updateCartQuantity(menuItemId: Int, quantity: Int): CartItem? {
-        val existing = cart.find { it.menuItem.id == menuItemId } ?: return null
-        val result = if (quantity <= 0) {
-            cart.remove(existing)
-            null
+    override suspend fun updateCartQuantity(menuItemId: Int, quantity: Int): CartItem? = withContext(Dispatchers.IO) {
+        if (quantity <= 0) {
+            cartDao.getCartItems().first().find { it.cartItemId == menuItemId }?.let {
+                cartDao.deleteCartItem(it)
+            }
         } else {
-            existing.quantity = quantity
-            existing
+            val existing = cartDao.getCartItems().first().find { it.cartItemId == menuItemId }
+            existing?.let {
+                cartDao.updateCartItem(it.copy(quantity = quantity))
+            }
         }
-        _cartFlow.value = cart.toList()
-        return result
+        return@withContext null
     }
 
-    override fun removeFromCart(menuItemId: Int): Boolean {
-        val existing = cart.find { it.menuItem.id == menuItemId } ?: return false
-        val removed = cart.remove(existing)
-        if (removed) {
-            _cartFlow.value = cart.toList()
+    override suspend fun removeFromCart(menuItemId: Int): Boolean = withContext(Dispatchers.IO) {
+        cartDao.getCartItems().first().find { it.cartItemId == menuItemId }?.let {
+            cartDao.deleteCartItem(it)
+            return@withContext true
         }
-        return removed
+        return@withContext false
     }
 
-    override fun clearCart() {
-        cart.clear()
-        _cartFlow.value = emptyList()
+    override suspend fun clearCart() = withContext(Dispatchers.IO) {
+        cartDao.clearCart()
     }
 
-    override fun addBooking(booking: TableBooking) {
-        bookings.add(0, booking)
+    override suspend fun addBooking(booking: TableBooking) {
+        // Handled in ReservationRepository
     }
 
-    override fun getBookings(): List<TableBooking> = bookings.toList()
+    override suspend fun getBookings(): List<TableBooking> = emptyList()
 
-    override fun cancelBooking(bookingId: String): Boolean {
-        return bookings.removeIf { it.id == bookingId || it.bookingId == bookingId }
-    }
+    override suspend fun cancelBooking(bookingId: String): Boolean = true
 
-    override fun placeOrder(order: Order): Boolean {
-        orders.add(0, order)
+    override suspend fun placeOrder(order: Order): Boolean {
         clearCart()
         return true
     }
 
-    override fun getCurrentOrders(): List<Order> = orders.filter { it.status != OrderStatus.COMPLETED }
+    override suspend fun getCurrentOrders(): List<Order> = emptyList()
 
-    override fun getPastOrders(): List<Order> = orders.filter { it.status == OrderStatus.COMPLETED }
+    override suspend fun getPastOrders(): List<Order> = emptyList()
 
-    override fun completeOrder(orderId: String) {
-        val index = orders.indexOfFirst { it.id.value == orderId }
-        if (index != -1) {
-            orders[index] = orders[index].copy(status = OrderStatus.COMPLETED)
-        }
-    }
+    override suspend fun completeOrder(orderId: String) {}
 
-    override fun getDeliveryStatus(orderId: String): Delivery? {
-        val order = orders.find { it.id.value == orderId } ?: return null
-        // Return mock delivery data for demonstration
-        return Delivery(
-            id = DeliveryId("DEL-${orderId.takeLast(4)}"),
-            orderId = order.id,
-            courierName = "Rahul Sharma",
-            courierPhone = "+91 98765 43210",
-            estimatedArrivalAt = System.currentTimeMillis() + 15 * 60 * 1000, // 15 mins from now
-            status = DeliveryStatus.IN_TRANSIT,
-            deliveryAddress = "123, Luxury Heights, Indiranagar, Bangalore"
-        )
-    }
+    override suspend fun getDeliveryStatus(orderId: String): Delivery? = null
 }

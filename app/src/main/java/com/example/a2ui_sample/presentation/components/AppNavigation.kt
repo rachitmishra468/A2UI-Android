@@ -44,7 +44,8 @@ fun AppNavigation() {
         composable("cart") {
             CartScreen(
                 onBack = { navController.popBackStack() },
-                onCheckout = { navController.navigate("checkout") }
+                onCheckout = { navController.navigate("checkout") },
+                onNavigateToOrderHistory = { navController.navigate("orders") }
             )
         }
         composable("checkout") {

@@ -11,7 +11,7 @@ import com.example.a2ui_sample.infrastructure.persistence.entity.MenuItemEntity
     version = 1,
     exportSchema = false
 )
-//@TypeConverters(Converters::class)
+@TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun menuDao(): MenuDao
 }
