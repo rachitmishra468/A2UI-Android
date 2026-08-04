@@ -35,7 +35,7 @@ fun HomeScreen(
     onNavigateToCart: () -> Unit,
     viewModel: RestaurantMainViewModel = hiltViewModel()
 ) {
-    val cartItems = viewModel.getCartItems()
+    val cartItems by viewModel.cartItems.collectAsState()
     val cartCount = cartItems.sumOf { it.quantity }
 
     Scaffold(

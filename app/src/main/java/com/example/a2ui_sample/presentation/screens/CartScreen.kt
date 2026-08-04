@@ -30,10 +30,8 @@ fun CartScreen(
     onCheckout: () -> Unit,
     viewModel: RestaurantMainViewModel = hiltViewModel()
 ) {
-    // Observe cart trigger to update when cart changes
-    viewModel.cartUpdateTrigger.value
-    val cartItems = viewModel.getCartItems()
-    val total = viewModel.getCartTotal()
+    val cartItems by viewModel.cartItems.collectAsState()
+    val total = cartItems.sumOf { it.menuItem.price.amount * it.quantity }
 
     Scaffold(
         topBar = {

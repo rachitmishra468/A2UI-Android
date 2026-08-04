@@ -13,7 +13,24 @@ data class Feedback(
     val id: FeedbackId,
     val orderId: OrderId,
     val customerId: CustomerId,
-    val rating: Rating,
+    val foodRating: Rating,
+    val deliveryRating: Rating,
+    val packagingRating: Rating,
+    val overallRating: Rating,
     val comment: String? = null,
+    val sentiment: Sentiment = Sentiment.NEUTRAL,
     val createdAt: Long = System.currentTimeMillis()
+)
+
+enum class Sentiment {
+    POSITIVE,
+    NEUTRAL,
+    NEGATIVE
+}
+
+data class FeedbackMetrics(
+    val averageRating: Double,
+    val totalReviews: Int,
+    val ratingDistribution: Map<Int, Int>,
+    val sentimentSummary: Map<Sentiment, Int>
 )

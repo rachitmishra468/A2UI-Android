@@ -4,12 +4,16 @@ import android.content.Context
 import com.example.a2ui_sample.domain.model.*
 import com.example.a2ui_sample.domain.repository.MenuRepository
 import com.example.a2ui_sample.domain.valueobjects.CustomerId
+import com.example.a2ui_sample.domain.valueobjects.DeliveryId
+import com.example.a2ui_sample.domain.valueobjects.DeliveryStatus
 import com.example.a2ui_sample.domain.valueobjects.OrderId
 import com.example.a2ui_sample.domain.valueobjects.OrderStatus
 import com.example.a2ui_sample.domain.valueobjects.Price
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -19,6 +23,8 @@ class MenuRepositoryImpl @Inject constructor(
 ) : MenuRepository {
     private val gson = Gson()
     private val cart = mutableListOf<CartItem>()
+    private val _cartFlow = MutableStateFlow<List<CartItem>>(emptyList())
+
     private val bookings = mutableListOf<TableBooking>()
     private val orders = mutableListOf<Order>()
     private val defaultCustomerId = CustomerId("guest")
@@ -47,7 +53,7 @@ class MenuRepositoryImpl @Inject constructor(
     override fun addToCart(menuItemId: Int): CartItem? {
         val item = menuItemsCache.find { it.id == menuItemId } ?: return null
         val existing = cart.find { it.menuItem.id == menuItemId }
-        return if (existing != null) {
+        val result = if (existing != null) {
             existing.quantity++
             existing
         } else {
@@ -55,29 +61,41 @@ class MenuRepositoryImpl @Inject constructor(
             cart.add(0, newCartItem)
             newCartItem
         }
+        _cartFlow.value = cart.toList()
+        return result
     }
 
     override fun getCart(): List<CartItem> = cart
+
+    override fun getCartFlow() = _cartFlow.asStateFlow()
 
     override fun getCartTotal(): Int = cart.sumOf { (it.menuItem.price.amount * it.quantity) }
 
     override fun updateCartQuantity(menuItemId: Int, quantity: Int): CartItem? {
         val existing = cart.find { it.menuItem.id == menuItemId } ?: return null
-        if (quantity <= 0) {
+        val result = if (quantity <= 0) {
             cart.remove(existing)
-            return null
+            null
+        } else {
+            existing.quantity = quantity
+            existing
         }
-        existing.quantity = quantity
-        return existing
+        _cartFlow.value = cart.toList()
+        return result
     }
 
     override fun removeFromCart(menuItemId: Int): Boolean {
         val existing = cart.find { it.menuItem.id == menuItemId } ?: return false
-        return cart.remove(existing)
+        val removed = cart.remove(existing)
+        if (removed) {
+            _cartFlow.value = cart.toList()
+        }
+        return removed
     }
 
     override fun clearCart() {
         cart.clear()
+        _cartFlow.value = emptyList()
     }
 
     override fun addBooking(booking: TableBooking) {
@@ -105,5 +123,19 @@ class MenuRepositoryImpl @Inject constructor(
         if (index != -1) {
             orders[index] = orders[index].copy(status = OrderStatus.COMPLETED)
         }
+    }
+
+    override fun getDeliveryStatus(orderId: String): Delivery? {
+        val order = orders.find { it.id.value == orderId } ?: return null
+        // Return mock delivery data for demonstration
+        return Delivery(
+            id = DeliveryId("DEL-${orderId.takeLast(4)}"),
+            orderId = order.id,
+            courierName = "Rahul Sharma",
+            courierPhone = "+91 98765 43210",
+            estimatedArrivalAt = System.currentTimeMillis() + 15 * 60 * 1000, // 15 mins from now
+            status = DeliveryStatus.IN_TRANSIT,
+            deliveryAddress = "123, Luxury Heights, Indiranagar, Bangalore"
+        )
     }
 }

@@ -14,6 +14,7 @@ interface MenuRepository {
     // Cart
     fun addToCart(menuItemId: Int): CartItem?
     fun getCart(): List<CartItem>
+    fun getCartFlow(): kotlinx.coroutines.flow.Flow<List<CartItem>>
     fun getCartTotal(): Int
     fun updateCartQuantity(menuItemId: Int, quantity: Int): CartItem?
     fun removeFromCart(menuItemId: Int): Boolean
@@ -29,4 +30,5 @@ interface MenuRepository {
     fun getCurrentOrders(): List<Order>
     fun getPastOrders(): List<Order>
     fun completeOrder(orderId: String)
+    fun getDeliveryStatus(orderId: String): Delivery?
 }

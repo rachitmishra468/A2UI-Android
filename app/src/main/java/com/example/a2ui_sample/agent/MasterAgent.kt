@@ -3,6 +3,7 @@ package com.example.a2ui_sample.agent
 import android.util.Log
 import com.example.a2ui_sample.domain.model.AgentResponse
 import com.example.a2ui_sample.domain.model.UserIntent
+import com.example.a2ui_sample.domain.repository.FeedbackRepository
 import com.example.a2ui_sample.domain.repository.MenuRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -16,7 +17,8 @@ private const val TAG = "A2UI_FLOW"
  * 3. A2UIResponseBuilder for UI (Presentation)
  */
 class ADKRestaurantMasterAgent(
-    private val menuRepository: MenuRepository
+    private val menuRepository: MenuRepository,
+    private val feedbackRepository: FeedbackRepository
 ) {
     private val responseBuilder by lazy { A2UIResponseBuilder() }
     private val geminiProvider by lazy { GeminiProvider() }
@@ -24,6 +26,8 @@ class ADKRestaurantMasterAgent(
     private val menuAgent by lazy { MenuAgent(menuRepository) }
     private val cartAgent by lazy { CartAgent(menuRepository) }
     private val bookingAgent by lazy { BookingAgent(menuRepository) }
+    private val deliveryAgent by lazy { DeliveryAgent(menuRepository) }
+    private val feedbackAgent by lazy { FeedbackAgent(feedbackRepository) }
 
     /**
      * processQuery
@@ -56,8 +60,13 @@ class ADKRestaurantMasterAgent(
             UserIntent.BOOKING_LIST -> bookingAgent.execute(intentResult)
             
             UserIntent.ORDER_HISTORY,
-            UserIntent.ORDER_TRACK,
-            UserIntent.ORDER_REPEAT -> AgentResponse.Message("Order history and tracking is coming soon!")
+            UserIntent.ORDER_TRACKING,
+            UserIntent.ORDER_REPEAT -> deliveryAgent.execute(intentResult)
+            
+            UserIntent.FEEDBACK_SUBMIT,
+            UserIntent.FEEDBACK_VIEW,
+            UserIntent.FEEDBACK_UPDATE,
+            UserIntent.FEEDBACK_METRICS -> feedbackAgent.execute(intentResult)
             
             UserIntent.OFFER_LIST,
             UserIntent.OFFER_APPLY -> AgentResponse.Message("Offers and discounts are coming soon!")

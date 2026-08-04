@@ -61,7 +61,8 @@ fun MenuScreen(
                         IconButton(onClick = onNavigateToCart) {
                             Icon(Icons.Default.ShoppingCart, contentDescription = "Cart")
                         }
-                        val cartCount = viewModel.getCartItems().sumOf { it.quantity }
+                        val cartItems by viewModel.cartItems.collectAsState()
+                        val cartCount = cartItems.sumOf { it.quantity }
                         if (cartCount > 0) {
                             Badge(
                                 modifier = Modifier.align(Alignment.TopEnd).padding(4.dp),

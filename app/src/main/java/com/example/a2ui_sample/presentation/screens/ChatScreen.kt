@@ -112,7 +112,8 @@ fun ChatScreen(
                         IconButton(onClick = onNavigateToCart) {
                             Icon(Icons.Default.ShoppingCart, contentDescription = "Cart")
                         }
-                        val cartCount = viewModel.getCartItems().sumOf { it.quantity }
+                        val cartItems by viewModel.cartItems.collectAsState()
+                        val cartCount = cartItems.sumOf { it.quantity }
                         if (cartCount > 0) {
                             Badge(
                                 modifier = Modifier.align(Alignment.TopEnd).padding(4.dp),
@@ -249,7 +250,10 @@ fun QuickActions(onAction: (String) -> Unit) {
         "Book a table for tonight",
         "Show my cart",
         "Repeat my last order",
-        "Take me to checkout"
+        "Take me to checkout",
+        "Show my previous feedback",
+        "Rate my last order",
+        "Feedback Dashboard"
     )
     LazyRow(
         modifier = Modifier

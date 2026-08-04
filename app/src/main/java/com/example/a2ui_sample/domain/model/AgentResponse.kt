@@ -14,4 +14,11 @@ sealed class AgentResponse {
     data class CartView(val items: List<CartItem>, val totalAmount: Int) : AgentResponse()
     
     data class OrderConfirmation(val order: Order) : AgentResponse()
+
+    data class DeliveryUpdate(val delivery: Delivery, val order: Order) : AgentResponse()
+
+    data class FeedbackForm(val orderId: String, val message: String) : AgentResponse()
+    data class FeedbackSubmitted(val feedback: Feedback, val message: String) : AgentResponse()
+    data class FeedbackHistory(val feedbacks: List<Feedback>, val message: String) : AgentResponse()
+    data class FeedbackDashboard(val metrics: FeedbackMetrics, val message: String) : AgentResponse()
 }

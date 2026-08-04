@@ -1,10 +1,12 @@
 package com.example.a2ui_sample.infrastructure.di
 
 import com.example.a2ui_sample.domain.repository.DeliveryRepository
+import com.example.a2ui_sample.domain.repository.FeedbackRepository
 import com.example.a2ui_sample.domain.repository.MenuRepository
 import com.example.a2ui_sample.domain.repository.OrderRepository
 import com.example.a2ui_sample.domain.repository.ReservationRepository
 import com.example.a2ui_sample.infrastructure.repository.DeliveryRepositoryImpl
+import com.example.a2ui_sample.infrastructure.repository.FeedbackRepositoryImpl
 import com.example.a2ui_sample.infrastructure.repository.MenuRepositoryImpl
 import com.example.a2ui_sample.infrastructure.repository.OrderRepositoryImpl
 import com.example.a2ui_sample.infrastructure.repository.ReservationRepositoryImpl
@@ -41,4 +43,10 @@ abstract class RepositoryModule {
     abstract fun bindDeliveryRepository(
         deliveryRepositoryImpl: DeliveryRepositoryImpl
     ): DeliveryRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindFeedbackRepository(
+        feedbackRepositoryImpl: FeedbackRepositoryImpl
+    ): FeedbackRepository
 }

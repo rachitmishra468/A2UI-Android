@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.a2ui_sample.agent.ADKRestaurantMasterAgent
 import com.example.a2ui_sample.domain.model.*
+import com.example.a2ui_sample.domain.repository.FeedbackRepository
 import com.example.a2ui_sample.domain.repository.MenuRepository
 import com.example.a2ui_sample.domain.valueobjects.OrderId
 import com.example.a2ui_sample.domain.valueobjects.Price
@@ -26,9 +27,12 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+import kotlinx.coroutines.flow.*
+
 @HiltViewModel
 class RestaurantMainViewModel @Inject constructor(
-    private val repository: MenuRepository
+    private val repository: MenuRepository,
+    private val feedbackRepository: FeedbackRepository
 ) : ViewModel(), A2UILogger, ActionHandler {
 
     private val _featuredItems = MutableStateFlow<List<MenuItem>>(emptyList())
@@ -37,8 +41,8 @@ class RestaurantMainViewModel @Inject constructor(
     private val _uiMessages = mutableStateListOf<UiMessage>()
     val uiMessages: List<UiMessage> = _uiMessages
 
-    private val _cartUpdateTrigger = mutableStateOf(0)
-    val cartUpdateTrigger: MutableState<Int> = _cartUpdateTrigger
+    val cartItems: StateFlow<List<CartItem>> = repository.getCartFlow()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _navigationEvents = MutableSharedFlow<NavigationEvent>()
     val navigationEvents: SharedFlow<NavigationEvent> = _navigationEvents.asSharedFlow()
@@ -53,7 +57,7 @@ class RestaurantMainViewModel @Inject constructor(
         
         try {
             Log.d("A2UI_INIT", "Creating ADKRestaurantMasterAgent")
-            adkMasterAgent = ADKRestaurantMasterAgent(repository)
+            adkMasterAgent = ADKRestaurantMasterAgent(repository, feedbackRepository)
             Log.d("A2UI_INIT", "ADKRestaurantMasterAgent created successfully")
         } catch (e: Exception) {
             Log.e("A2UI_INIT", "CRITICAL: ADKRestaurantMasterAgent initialization failed: ${e.message}", e)
@@ -181,17 +185,14 @@ class RestaurantMainViewModel @Inject constructor(
 
     fun addToCart(menuItemId: Int) {
         repository.addToCart(menuItemId)
-        _cartUpdateTrigger.value++
     }
 
     fun updateCartQuantity(menuItemId: Int, quantity: Int) {
         repository.updateCartQuantity(menuItemId, quantity)
-        _cartUpdateTrigger.value++
     }
 
     fun removeFromCart(menuItemId: Int) {
         repository.removeFromCart(menuItemId)
-        _cartUpdateTrigger.value++
     }
 
     fun getCartItems(): List<CartItem> = repository.getCart()
@@ -240,7 +241,6 @@ class RestaurantMainViewModel @Inject constructor(
         )
 
         repository.placeOrder(order)
-        _cartUpdateTrigger.value++
         return order
     }
 
