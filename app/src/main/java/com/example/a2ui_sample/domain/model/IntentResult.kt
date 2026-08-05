@@ -9,6 +9,7 @@ import com.google.gson.annotations.SerializedName
 data class IntentResult(
     @SerializedName("mode") val mode: String? = null, // "INTENT" or "TOOL_WORKFLOW"
     @SerializedName("intent") val intent: String? = null,
+    @SerializedName("itemName") val itemName: String? = null,
     @SerializedName("category") val category: String? = null,
     @SerializedName("diet") val diet: String? = null,
     @SerializedName("priceLimit") val priceLimit: Int? = null,

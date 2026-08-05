@@ -76,3 +76,10 @@ data class ChatMessageEntity(
     val a2uiPayload: String? = null,
     val conversationId: String = "main_conversation" // For future multi-user support
 )
+
+@Entity(tableName = "conversation_memory")
+data class ConversationMemoryEntity(
+    @PrimaryKey val key: String,
+    val value: String,
+    val timestamp: Long = System.currentTimeMillis()
+)

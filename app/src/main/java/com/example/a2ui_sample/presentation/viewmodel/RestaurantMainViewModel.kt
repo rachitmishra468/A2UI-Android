@@ -34,7 +34,8 @@ class RestaurantMainViewModel @Inject constructor(
     private val orderRepository: OrderRepository,
     private val reservationRepository: ReservationRepository,
     private val deliveryRepository: DeliveryRepository,
-    private val chatMessageDao: ChatMessageDao
+    private val chatMessageDao: ChatMessageDao,
+    private val memoryManager: com.example.a2ui_sample.agent.ConversationMemoryManager
 ) : ViewModel(), A2UILogger, ActionHandler {
 
     private val _featuredItems = MutableStateFlow<List<MenuItem>>(emptyList())
@@ -57,7 +58,7 @@ class RestaurantMainViewModel @Inject constructor(
     val allFeedback: Flow<List<Feedback>> = feedbackRepository.getFeedbackFlow()
 
     val renderer = A2UIRenderer(this)
-    var adkMasterAgent: ADKRestaurantMasterAgent? = null
+    private var adkMasterAgent: ADKRestaurantMasterAgent? = null
 
     init {
         Log.d("A2UI_INIT", "RestaurantMainViewModel init started")
@@ -74,6 +75,9 @@ class RestaurantMainViewModel @Inject constructor(
                 orderRepository,
                 deliveryRepository
             )
+            // Manual injection for adkMasterAgent
+            adkMasterAgent?.memoryManager = memoryManager
+
             Log.d("A2UI_INIT", "ADKRestaurantMasterAgent created successfully")
         } catch (e: Exception) {
             Log.e("A2UI_INIT", "CRITICAL: ADKRestaurantMasterAgent initialization failed: ${e.message}", e)
@@ -176,6 +180,8 @@ class RestaurantMainViewModel @Inject constructor(
                 val itemId = (context["itemId"] as? Number)?.toInt()
                 if (itemId != null) {
                     addToCart(itemId)
+                    // Persist to memory
+                    viewModelScope.launch { memoryManager.save(com.example.a2ui_sample.agent.ConversationMemoryManager.LAST_SELECTED_ITEM, itemId) }
                 }
             }
             "viewCart" -> {
@@ -185,6 +191,8 @@ class RestaurantMainViewModel @Inject constructor(
                 viewModelScope.launch { _navigationEvents.emit(NavigationEvent.NavigateToMenu) }
             }
             "openBooking" -> {
+                // Update memory before navigating
+                viewModelScope.launch { memoryManager.save(com.example.a2ui_sample.agent.ConversationMemoryManager.LAST_DISCUSSED_TOPIC, "booking_intent") }
                 viewModelScope.launch { _navigationEvents.emit(NavigationEvent.NavigateToBookings) }
             }
             "checkout" -> {
@@ -227,6 +235,9 @@ class RestaurantMainViewModel @Inject constructor(
                         if (order != null) {
                             Log.i("A2UI_FLOW", "[CHECKOUT] ✅ Order Created (COD): ${order.id.value}")
                             
+                            // Persist to memory
+                            adkMasterAgent?.updateOrderMemory(order)
+
                             val payload = adkMasterAgent?.buildOrderPlacedResponse(order)
                             if (payload != null) {
                                 // 2. Process renderer on Main thread
@@ -251,6 +262,9 @@ class RestaurantMainViewModel @Inject constructor(
                                 val satisfactionPayload = adkMasterAgent?.buildPremiumFeedbackResponse(order)
                                 if (satisfactionPayload != null) {
                                     withContext(Dispatchers.Main) {
+                                        // Save to memory
+                                        memoryManager.save(com.example.a2ui_sample.agent.ConversationMemoryManager.LAST_DISCUSSED_TOPIC, "checkout_completed")
+
                                         splitA2UICommand(satisfactionPayload).forEach { renderer.processMessage(it) }
                                         addMessage(UiMessage(
                                             text = "How was your experience today?",
@@ -283,7 +297,7 @@ class RestaurantMainViewModel @Inject constructor(
                 val orderId = context["orderId"] as? String ?: "unknown"
                 // Extract comment from data model via renderer
                 val surfaceData = renderer.getDataModel(surfaceId)?.getDataSnapshot()
-                val comment = surfaceData?.get("comment") as? String ?: ""
+                val comment = (surfaceData?.get("comment") ?: "").toString()
                 
                 Log.i("A2UI_FLOW", "[FEEDBACK] Submitting for Order $orderId: Comment='$comment'")
                 
@@ -303,6 +317,9 @@ class RestaurantMainViewModel @Inject constructor(
                     )
                     feedbackRepository.submitFeedback(feedback)
                     
+                    // Update memory with last feedback
+                    memoryManager.save(com.example.a2ui_sample.agent.ConversationMemoryManager.LAST_DISCUSSED_TOPIC, "feedback_submitted")
+
                     withContext(Dispatchers.Main) {
                         addMessage(UiMessage(
                             text = "Thank you for your feedback! 😊 Your response helps me improve future recommendations and service quality.",
@@ -377,18 +394,26 @@ class RestaurantMainViewModel @Inject constructor(
                 _loadingState.value = ChatLoadingState(status = "🔍 Analyzing intent...")
                 
                 // 3. Offload AI processing to IO thread with CONVERSATIONAL MEMORY
-                val responses = withContext(Dispatchers.IO) {
+                val responses: List<String>? = withContext(Dispatchers.IO) {
                     // Get chat history from database for true conversational memory
                     val chatHistory = chatMessageDao.getRecentMessages(limit = 10)
                     
+                    // Add local persistent memory context
+                    val persistentContext = memoryManager.getAllContext()
+                    val contextFormatted = if (persistentContext.isNotEmpty()) {
+                        "\n\n[SYSTEM CONTEXT - DO NOT EXECUTE UNLESS REQUESTED]\n" + 
+                        persistentContext.entries.joinToString("\n") { (key, value) -> "$key: $value" } +
+                        "\n[END SYSTEM CONTEXT]\n"
+                    } else ""
+
                     // Use new context-aware method
-                    adkMasterAgent?.processQueryWithMemory(text, chatHistory) { status ->
+                    adkMasterAgent?.processQueryWithMemory(text + contextFormatted, chatHistory) { status: String ->
                         _loadingState.value = ChatLoadingState(status = status)
                     }
                 }
 
-                responses?.forEachIndexed { index, response ->
-                    Log.d("A2UI_FLOW", "[STEP] Processing response item $index")
+                responses?.forEachIndexed { index: Int, response: String ->
+                    Log.d("A2UI_FLOW", "[STEP] Processing response item $index. Payload hash: ${response.hashCode()}")
                     if (response.trim().startsWith("{") && response.contains("version")) {
                         _loadingState.value = ChatLoadingState(status = "🎨 Preparing view...")
                         
@@ -400,17 +425,21 @@ class RestaurantMainViewModel @Inject constructor(
                             renderer.processMessage(fragment)
                         }
 
-                        // Add to chat as a single A2UI message containing all fragments
-                        Log.d("A2UI_FLOW", "[STEP] Adding A2UI message bubble for response $index")
-                        addMessage(UiMessage(
-                            text = "I've updated the view for you:",
-                            isFromUser = false,
-                            isA2UI = true,
-                            a2uiPayload = response
-                        ))
+                        // Only add to chat if it's an updateComponents message (the UI part)
+                        if (response.contains("updateComponents")) {
+                            Log.d("A2UI_FLOW", "[STEP] Adding A2UI message bubble for response $index")
+                            addMessage(UiMessage(
+                                text = "I've updated the view for you:",
+                                isFromUser = false,
+                                isA2UI = true,
+                                a2uiPayload = response
+                            ))
+                        }
                     } else {
-                        Log.d("A2UI_FLOW", "[STEP] Adding text message bubble for response $index")
-                        addMessage(UiMessage(text = response, isFromUser = false))
+                        Log.d("A2UI_FLOW", "[STEP] Adding text message bubble for response $index. Content: ${response.take(20)}...")
+                        if (response.isNotBlank()) {
+                             addMessage(UiMessage(text = response, isFromUser = false))
+                        }
                     }
                 }
             } catch (e: Exception) {

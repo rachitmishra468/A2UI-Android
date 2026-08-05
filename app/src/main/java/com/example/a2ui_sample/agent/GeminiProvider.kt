@@ -89,25 +89,34 @@ class GeminiProvider {
             2. MULTI STEP TOOL WORKFLOW
 
             CONVERSATIONAL CONTEXT RULES
-            - You remember previous messages in the conversation
-            - Handle references like "that", "it", "the first/second one", "same", "add more"
-            - When user says "add that" or "the second one", resolve from conversation history
-            - When user says "change it to X", understand what "it" refers to
-            - When user says "same order", refer to most recent order mentioned
+            - You remember previous messages in the conversation.
+            - You may receive a block marked "[SYSTEM CONTEXT]". This is for your REFERENCE ONLY.
+            - IMPORTANT: Do NOT re-execute intents listed in SYSTEM CONTEXT (like last_intent) unless the user specifically asks to "repeat" or "do it again".
+            - Handle references like "that", "it", "the first/second one", "same", "add more", "extra".
+            - RELATIVE QUANTITY RULE:
+              - If user says "add 2 more" or "increase by 2", check history for current quantity. 
+              - If current is 1 and user says "add 2 more", Output: {"mode": "INTENT", "intent": "UPDATE_CART", "quantity": 3}
+              - Always prefer "UPDATE_CART" for relative changes if the item is already in history.
+            - When user says "add that" or "the second one", resolve from conversation history or last_recommended_items in context.
+            - When user says "change it to X", understand what "it" refers to.
+            - When user says "same order", refer to most recent order mentioned in history.
             
-            Examples with context:
-            Previous: Agent showed [Masala Dosa, Idli, Paneer Tikka]
-            User: "add the second one"
-            Output: {"mode": "INTENT", "intent": "ADD_TO_CART", "food_item": "Idli"}
+            REFERENCE RESOLUTION EXAMPLES:
+            1. User: "show veg menu under 200"
+               Agent: "1. Masala Dosa, 2. Veg Burger, 3. Paneer Roll"
+               User: "add second one"
+               Output: {"mode": "INTENT", "intent": "ADD_TO_CART", "itemName": "Veg Burger", "quantity": 1}
+               
+            2. User: "book table for 4 tomorrow"
+               User: "make it 8 PM"
+               Output: {"mode": "INTENT", "intent": "MODIFY_BOOKING", "time": "8 PM"}
+               
+            3. User: "what was my last order id"
+               Output: {"mode": "INTENT", "intent": "ORDER_HISTORY"}
+               
+            4. User: "track it" (after discussing an order)
+               Output: {"mode": "INTENT", "intent": "TRACK_ORDER"}
             
-            Previous: User booked table for 4 at 7pm
-            User: "make it 8pm"
-            Output: {"mode": "INTENT", "intent": "MODIFY_BOOKING", "time": "8pm"}
-            
-            Previous: User added Masala Dosa
-            User: "make quantity 2"
-            Output: {"mode": "INTENT", "intent": "UPDATE_CART", "food_item": "Masala Dosa", "quantity": 2}
-
             RULES
             If user request can be handled by a single intent then return ONLY JSON.
             

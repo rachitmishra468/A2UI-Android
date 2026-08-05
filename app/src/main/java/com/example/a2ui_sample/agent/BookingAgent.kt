@@ -106,35 +106,64 @@ class BookingAgent(private val repository: ReservationRepository) {
                 val bookingId = intent.entities["booking_id"] as? String
                 val target = intent.entities["target"] as? String
                 val dateStr = intent.entities["date"] as? String
+                val timeStr = intent.entities["time"] as? String
 
                 if (bookingId != null) {
                     repository.cancelReservation(ReservationId(bookingId))
                     AgentResponse.Message("Done! ✅ Your booking has been cancelled. We hope to see you again soon! 😊")
-                } else if (target == "all" || dateStr != null) {
+                } else if (target == "all" || dateStr != null || timeStr != null) {
                     val allBookings = repository.getUpcomingReservations(CustomerId("guest")).first()
-                    val toCancel = if (dateStr != null) {
+                    val toCancel = if (dateStr != null || timeStr != null) {
                         allBookings.filter { b ->
-                            val bDate = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(java.util.Date(b.timeSlot.startMillis))
-                            // Simple logic to match "today", "tomorrow" or exact date
-                            val targetDate = when {
-                                dateStr.contains("tomorrow", true) -> {
-                                    val cal = java.util.Calendar.getInstance(); cal.add(java.util.Calendar.DAY_OF_YEAR, 1)
-                                    SimpleDateFormat("yyyy-MM-dd", Locale.US).format(cal.time)
+                            var match = true
+                            
+                            // Date Match
+                            if (dateStr != null) {
+                                val bDate = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(java.util.Date(b.timeSlot.startMillis))
+                                val targetDate = when {
+                                    dateStr.contains("tomorrow", true) -> {
+                                        val cal = java.util.Calendar.getInstance(); cal.add(java.util.Calendar.DAY_OF_YEAR, 1)
+                                        SimpleDateFormat("yyyy-MM-dd", Locale.US).format(cal.time)
+                                    }
+                                    dateStr.contains("today", true) -> {
+                                        SimpleDateFormat("yyyy-MM-dd", Locale.US).format(java.util.Date())
+                                    }
+                                    else -> dateStr
                                 }
-                                dateStr.contains("today", true) -> {
-                                    SimpleDateFormat("yyyy-MM-dd", Locale.US).format(java.util.Date())
-                                }
-                                else -> dateStr
+                                if (bDate != targetDate) match = false
                             }
-                            bDate == targetDate
+
+                            // Time Match
+                            if (match && timeStr != null) {
+                                val bTime = SimpleDateFormat("hh:mm a", Locale.US).format(java.util.Date(b.timeSlot.startMillis))
+                                // Normalize user time (e.g., "8:00 p.m." -> "08:00 PM")
+                                val normalizedTarget = try {
+                                    val formats = listOf("hh:mm a", "h:mm a", "HH:mm", "h a", "H:mm")
+                                    var parsed: java.util.Date? = null
+                                    for (f in formats) {
+                                        try {
+                                            parsed = SimpleDateFormat(f, Locale.US).parse(timeStr.replace(".", ""))
+                                            if (parsed != null) break
+                                        } catch (e: Exception) {}
+                                    }
+                                    if (parsed != null) SimpleDateFormat("hh:mm a", Locale.US).format(parsed) else timeStr
+                                } catch (e: Exception) { timeStr }
+                                
+                                if (bTime.lowercase().replace(" ", "") != normalizedTarget.lowercase().replace(" ", "").replace(".", "")) {
+                                    match = false
+                                }
+                            }
+                            
+                            match
                         }
                     } else allBookings
 
                     if (toCancel.isNotEmpty()) {
                         toCancel.forEach { repository.cancelReservation(it.id) }
-                        AgentResponse.Message("Done! ✅ I've cancelled ${toCancel.size} bookings for you. 😊")
+                        AgentResponse.Message("Done! ✅ I've cancelled ${toCancel.size} booking(s) for you. 😊")
                     } else {
-                        AgentResponse.Message("I couldn't find any bookings to cancel for ${dateStr ?: "your request"}. 🤔")
+                        val filterDesc = listOfNotNull(dateStr, timeStr).joinToString(" at ")
+                        AgentResponse.Message("I couldn't find any bookings to cancel for $filterDesc. 🤔")
                     }
                 } else {
                     AgentResponse.Message("Could you tell me which booking you'd like to cancel? 🤔")

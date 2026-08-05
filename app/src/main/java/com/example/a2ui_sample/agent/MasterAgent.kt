@@ -4,6 +4,9 @@ import android.util.Log
 import com.example.a2ui_sample.domain.model.*
 import com.example.a2ui_sample.domain.repository.*
 import com.example.a2ui_sample.infrastructure.persistence.entity.ChatMessageEntity
+import org.a2ui.compose.rendering.A2UIRenderer
+import javax.inject.Inject
+import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.first
@@ -33,6 +36,8 @@ class ADKRestaurantMasterAgent(
     private val deliveryAgent by lazy { DeliveryAgent(orderRepository, deliveryRepository, menuRepository) }
     private val feedbackAgent by lazy { FeedbackAgent(feedbackRepository) }
 
+    @Inject lateinit var memoryManager: ConversationMemoryManager
+
     /**
      * Process query with conversational memory (NEW - AI-POWERED)
      * Handles multi-turn conversations and contextual references
@@ -50,18 +55,20 @@ class ADKRestaurantMasterAgent(
         Log.d(TAG, "Decision: ${decision.mode} (Tasks: ${decision.tasks?.size ?: 0})")
 
         val finalMessages = mutableListOf<String>()
-        var executedIntent: UserIntent? = null
 
         if (decision.mode == "INTENT" && decision.intent != null) {
             onProgress("⚙️ Processing ${decision.intent}...")
             val response = executeSingleIntent(decision)
-            executedIntent = mapToolToUserIntent(decision.intent)
             
             val uniqueId = "surf_${System.currentTimeMillis()}_0"
             // Join fragments with newlines so they are treated as one logical UI update
             val payload = responseBuilder.buildWithId(response, uniqueId).joinToString("\n")
             finalMessages.add(payload)
             Log.d(TAG, "A2UI_FLOW: Added INTENT payload to finalMessages")
+            
+            // Persist important data to memory
+            updateMemory(decision, response)
+            Log.d(TAG, "🧠 Context resolved: LAST_INTENT=${decision.intent}")
         } else if (decision.mode == "TOOL_WORKFLOW" && decision.tasks != null) {
             Log.d(TAG, "📋 MULTITASK: ${decision.tasks.size} tasks planned")
             onProgress("📋 Planning ${decision.tasks.size} tasks...")
@@ -72,7 +79,6 @@ class ADKRestaurantMasterAgent(
                 
                 val taskStart = System.currentTimeMillis()
                 val response = executeTask(task)
-                executedIntent = mapToolToUserIntent(task.tool)
                 val taskDuration = System.currentTimeMillis() - taskStart
                 
                 val uniqueId = "surf_${System.currentTimeMillis()}_$index"
@@ -87,6 +93,34 @@ class ADKRestaurantMasterAgent(
         }
 
         return@withContext finalMessages
+    }
+
+    private suspend fun updateMemory(intent: IntentResult, response: AgentResponse) {
+        // Safe guard for memoryManager initialization
+        if (!::memoryManager.isInitialized) {
+             Log.w(TAG, "MemoryManager not initialized, skipping memory update")
+             return
+        }
+
+        memoryManager.save(ConversationMemoryManager.LAST_INTENT, intent.intent)
+        
+        when (response) {
+            is AgentResponse.OrderPlaced -> {
+                memoryManager.save(ConversationMemoryManager.LAST_ORDER_ID, response.order.id.value)
+                memoryManager.save(ConversationMemoryManager.LAST_ORDER, response.order)
+            }
+            is AgentResponse.BookingConfirmation -> {
+                memoryManager.save(ConversationMemoryManager.LAST_BOOKING_ID, response.booking.id)
+                memoryManager.save(ConversationMemoryManager.LAST_BOOKING, response.booking)
+            }
+            is AgentResponse.MenuResults -> {
+                memoryManager.save(ConversationMemoryManager.LAST_MENU_RESULTS, response.items)
+            }
+            is AgentResponse.Recommendations -> {
+                memoryManager.save(ConversationMemoryManager.LAST_RECOMMENDED_ITEMS, response.items)
+            }
+            else -> {}
+        }
     }
     
     suspend fun processQuery(
@@ -133,6 +167,7 @@ class ADKRestaurantMasterAgent(
         val mappedIntent = mapToolToUserIntent(intentResult.intent)
         
         val entities = mutableMapOf<String, Any>()
+        intentResult.itemName?.let { entities["food_item"] = it }
         intentResult.category?.let { entities["category"] = it }
         intentResult.diet?.let { entities["diet"] = it }
         intentResult.priceLimit?.let { entities["price_limit"] = it }
@@ -186,8 +221,28 @@ class ADKRestaurantMasterAgent(
     }
 
     private suspend fun routeToAgent(intent: UserIntent, entities: Map<String, Any>): AgentResponse {
-        val wrapper = IntentResultWrapper(intent, entities)
+        // Context Resolution: If intent is repeat/cancel/track without ID, fetch from memory
+        val finalEntities = entities.toMutableMap()
+        if (intent == UserIntent.ORDER_TRACKING || intent == UserIntent.ORDER_REPEAT || intent == UserIntent.ORDER_CANCEL) {
+             if (!entities.containsKey("order_id")) {
+                  memoryManager.get(ConversationMemoryManager.LAST_ORDER_ID, String::class.java)?.let {
+                       Log.d(TAG, "🧠 RESOLVED: Using last order ID from memory: $it")
+                       finalEntities["order_id"] = it
+                  }
+             }
+        }
         
+        if (intent == UserIntent.BOOKING_CANCEL || intent == UserIntent.BOOKING_MODIFY) {
+             if (!entities.containsKey("booking_id")) {
+                  memoryManager.get(ConversationMemoryManager.LAST_BOOKING_ID, String::class.java)?.let {
+                       Log.d(TAG, "🧠 RESOLVED: Using last booking ID from memory: $it")
+                       finalEntities["booking_id"] = it
+                  }
+             }
+        }
+
+        val wrapper = IntentResultWrapper(intent, finalEntities)
+
         // Special handling for personalized recommendations
         if (intent == UserIntent.MENU_RECOMMEND) {
             Log.d(TAG, "🎯 Checking for personalized recommendations...")
@@ -264,8 +319,17 @@ class ADKRestaurantMasterAgent(
     fun buildOrderPlacedResponse(order: Order): String {
         val uniqueId = "surf_${System.currentTimeMillis()}_success"
         val responses = responseBuilder.buildWithId(AgentResponse.OrderPlaced(order), uniqueId)
+        
         // Join all fragments (CreateSurface, UpdateComponents, UpdateDataModel) with newlines
         return responses.joinToString("\n")
+    }
+
+    suspend fun updateOrderMemory(order: Order) {
+        if (::memoryManager.isInitialized) {
+            memoryManager.save(ConversationMemoryManager.LAST_ORDER_ID, order.id.value)
+            memoryManager.save(ConversationMemoryManager.LAST_ORDER, order)
+            memoryManager.save(ConversationMemoryManager.LAST_DISCUSSED_TOPIC, "order_placed")
+        }
     }
 
     fun buildSatisfactionResponse(intent: UserIntent): String? {

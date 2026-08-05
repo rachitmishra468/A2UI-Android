@@ -27,6 +27,10 @@ class CartAgent(private val repository: MenuRepository) {
                     val menuItem = repository.getMenuItems().find { it.name.contains(itemName, ignoreCase = true) }
                     if (menuItem != null) {
                         repository.addToCart(menuItem.id)
+                        // If quantity > 1, update it since addToCart usually adds 1
+                        if (quantity > 1) {
+                            repository.updateCartQuantity(menuItem.id, quantity)
+                        }
                         val currentCart = repository.getCart()
                         val totalItems = currentCart.sumOf { it.quantity }
                         val total = repository.getCartTotal()
@@ -36,6 +40,39 @@ class CartAgent(private val repository: MenuRepository) {
                     }
                 } else {
                     AgentResponse.Message("What delicious item would you like to add? 😋")
+                }
+            }
+            com.example.a2ui_sample.domain.model.UserIntent.CART_UPDATE -> {
+                val itemName = intent.entities["food_item"] as? String
+                val quantity = (intent.entities["quantity"] as? Number)?.toInt() ?: 0
+                
+                if (itemName != null && quantity > 0) {
+                    val cart = repository.getCart()
+                    val cartItem = cart.find { it.menuItem.name.contains(itemName, ignoreCase = true) }
+                    
+                    if (cartItem != null) {
+                        repository.updateCartQuantity(cartItem.menuItem.id, quantity)
+                        val totalItems = repository.getCart().sumOf { it.quantity }
+                        val total = repository.getCartTotal()
+                        AgentResponse.CartUpdate(
+                            cartItem.menuItem, 
+                            totalItems, 
+                            "Updated! ✅ I've set the quantity of ${cartItem.menuItem.name} to $quantity. Total: ₹$total."
+                        )
+                    } else {
+                        // Fallback: Try adding if not in cart
+                        val menuItem = repository.getMenuItems().find { it.name.contains(itemName, ignoreCase = true) }
+                        if (menuItem != null) {
+                            repository.addToCart(menuItem.id)
+                            repository.updateCartQuantity(menuItem.id, quantity)
+                            val totalItems = repository.getCart().sumOf { it.quantity }
+                            AgentResponse.CartUpdate(menuItem, totalItems, "Added and updated! 🛒 ${menuItem.name} is now in your cart (Qty: $quantity).")
+                        } else {
+                            AgentResponse.Message("I couldn't find '$itemName' in your cart or on the menu. 🤔")
+                        }
+                    }
+                } else {
+                    AgentResponse.Message("Which item should I update, and to what quantity? 🛒")
                 }
             }
             com.example.a2ui_sample.domain.model.UserIntent.CART_REMOVE -> {

@@ -16,8 +16,9 @@ import com.example.a2ui_sample.infrastructure.persistence.entity.*
         DeliveryTrackingEntity::class,
         MenuItemEntity::class,
         ChatMessageEntity::class,
+        ConversationMemoryEntity::class,
     ],
-    version = 5, // Incremented for conversationId field
+    version = 6, // Incremented for ConversationMemoryEntity
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -30,4 +31,5 @@ abstract class RestaurantDatabase : RoomDatabase() {
     abstract fun deliveryDao(): DeliveryDao
     abstract fun menuDao(): MenuDao
     abstract fun chatMessageDao(): ChatMessageDao
+    abstract fun conversationMemoryDao(): ConversationMemoryDao
 }

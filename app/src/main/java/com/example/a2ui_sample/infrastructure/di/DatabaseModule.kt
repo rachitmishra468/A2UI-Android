@@ -50,4 +50,7 @@ object DatabaseModule {
 
     @Provides
     fun provideChatMessageDao(database: RestaurantDatabase): ChatMessageDao = database.chatMessageDao()
+
+    @Provides
+    fun provideConversationMemoryDao(database: RestaurantDatabase): ConversationMemoryDao = database.conversationMemoryDao()
 }

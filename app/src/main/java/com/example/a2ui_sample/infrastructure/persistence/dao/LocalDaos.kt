@@ -87,3 +87,21 @@ interface ChatMessageDao {
     @Query("DELETE FROM chat_messages")
     suspend fun clearHistory()
 }
+
+@Dao
+interface ConversationMemoryDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertMemory(memory: ConversationMemoryEntity)
+
+    @Query("SELECT * FROM conversation_memory WHERE `key` = :key")
+    suspend fun getMemory(key: String): ConversationMemoryEntity?
+
+    @Query("SELECT * FROM conversation_memory")
+    suspend fun getAllMemory(): List<ConversationMemoryEntity>
+
+    @Query("DELETE FROM conversation_memory WHERE `key` = :key")
+    suspend fun deleteMemory(key: String)
+
+    @Query("DELETE FROM conversation_memory")
+    suspend fun clearMemory()
+}
