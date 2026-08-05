@@ -264,6 +264,30 @@ class ADKRestaurantMasterAgent(
     fun buildOrderPlacedResponse(order: Order): String {
         val uniqueId = "surf_${System.currentTimeMillis()}_success"
         val responses = responseBuilder.buildWithId(AgentResponse.OrderPlaced(order), uniqueId)
-        return responses.last()
+        // Join all fragments (CreateSurface, UpdateComponents, UpdateDataModel) with newlines
+        return responses.joinToString("\n")
+    }
+
+    fun buildSatisfactionResponse(intent: UserIntent): String? {
+        val prompt = ConversationHelper.getSatisfactionPrompt(intent)
+        if (prompt.isEmpty()) return null
+        
+        // Use the new Premium Feedback card
+        val uniqueId = "surf_${System.currentTimeMillis()}_feedback"
+        val responses = responseBuilder.buildWithId(
+            AgentResponse.FeedbackRequest("", prompt.substringBefore("😊").trim() + " 😊"), 
+            uniqueId
+        )
+        return responses.joinToString("\n")
+    }
+
+    fun buildPremiumFeedbackResponse(order: Order): String {
+        val uniqueId = "surf_${System.currentTimeMillis()}_feedback"
+        val prompt = "How was your experience with order ${order.id.value}?"
+        val responses = responseBuilder.buildWithId(
+            AgentResponse.FeedbackRequest(order.id.value, prompt),
+            uniqueId
+        )
+        return responses.joinToString("\n")
     }
 }

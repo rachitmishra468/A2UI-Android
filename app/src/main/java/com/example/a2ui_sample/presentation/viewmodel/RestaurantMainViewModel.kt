@@ -140,14 +140,14 @@ class RestaurantMainViewModel @Inject constructor(
                 
                 // Process A2UI payloads BEFORE adding to UI to ensure renderer is ready
                 messages.filter { it.isA2UI && it.a2uiPayload != null }.forEach { msg ->
-                    Log.d("A2UI_RESTORE", "JSON Found for message ${msg.id}")
+                    Log.d("A2UI_FLOW", "JSON Found for message ${msg.id}")
                     withContext(Dispatchers.Default) {
                         val jsonList = splitA2UICommand(msg.a2uiPayload!!)
                         jsonList.forEach { subJson ->
                             renderer.processMessage(subJson)
                         }
                     }
-                    Log.d("A2UI_RESTORE", "Rendering Completed for message ${msg.id}")
+                    Log.d("A2UI_FLOW", "Rendering Completed for message ${msg.id}")
                 }
                 
                 _uiMessages.addAll(messages)
@@ -170,7 +170,7 @@ class RestaurantMainViewModel @Inject constructor(
     }
 
     override fun onAction(surfaceId: String, actionName: String, context: Map<String, Any>) {
-        Log.d("A2UI_ACTION", "Action received: $actionName with context: $context")
+        Log.d("A2UI_FLOW", "Action received: $actionName with context: $context")
         when (actionName) {
             "addToCart" -> {
                 val itemId = (context["itemId"] as? Number)?.toInt()
@@ -220,21 +220,24 @@ class RestaurantMainViewModel @Inject constructor(
                 Log.d("A2UI_FLOW", "[CHECKOUT] COD button clicked")
                 viewModelScope.launch {
                     try {
+                        // 1. Show immediate text status
+                        addMessage(UiMessage(text = "Placing your order...", isFromUser = false))
+                        
                         val order = checkout()
                         if (order != null) {
                             Log.i("A2UI_FLOW", "[CHECKOUT] ✅ Order Created (COD): ${order.id.value}")
                             
                             val payload = adkMasterAgent?.buildOrderPlacedResponse(order)
                             if (payload != null) {
-                                // CRITICAL: Process renderer on Main thread FIRST
+                                // 2. Process renderer on Main thread
                                 withContext(Dispatchers.Main) {
-                                    renderer.processMessage(payload)
-                                    Log.d("A2UI_FLOW", "[CHECKOUT] Renderer processed A2UI payload")
+                                    splitA2UICommand(payload).forEach { renderer.processMessage(it) }
+                                    Log.d("A2UI_FLOW", "[CHECKOUT] Renderer processed multi-part A2UI payload for ${order.id.value}")
                                 }
                                 
-                                // Then add message to trigger recomposition
+                                // 3. Add the A2UI card bubble
                                 val msg = UiMessage(
-                                    text = "✅ Order placed successfully (COD)! Order ID: ${order.id.value}",
+                                    text = "Order Confirmation",
                                     isFromUser = false,
                                     isA2UI = true,
                                     a2uiPayload = payload
@@ -243,39 +246,66 @@ class RestaurantMainViewModel @Inject constructor(
                                     addMessage(msg)
                                 }
                                 
-                                // Add satisfaction feedback prompt after order placement
-                                kotlinx.coroutines.delay(500)  // Small delay for better UX
-                                val satisfactionPrompt = ConversationHelper.getSatisfactionPrompt(
-                                    com.example.a2ui_sample.domain.model.UserIntent.ORDER_PLACED
-                                )
-                                if (satisfactionPrompt.isNotEmpty()) {
+                                // 4. Add PREMIUM satisfaction feedback card with delay
+                                kotlinx.coroutines.delay(1500)
+                                val satisfactionPayload = adkMasterAgent?.buildPremiumFeedbackResponse(order)
+                                if (satisfactionPayload != null) {
                                     withContext(Dispatchers.Main) {
+                                        splitA2UICommand(satisfactionPayload).forEach { renderer.processMessage(it) }
                                         addMessage(UiMessage(
-                                            text = satisfactionPrompt,
-                                            isFromUser = false
+                                            text = "How was your experience today?",
+                                            isFromUser = false,
+                                            isA2UI = true,
+                                            a2uiPayload = satisfactionPayload
                                         ))
                                     }
                                 }
                                 
-                                Log.i("A2UI_FLOW", "[CHECKOUT] ✅ Confirmation message added to chat")
-                            } else {
-                                Log.e("A2UI_FLOW", "[CHECKOUT] ❌ Failed to build A2UI payload")
-                                addMessage(UiMessage(
-                                    text = "⚠️ Order placed but confirmation card unavailable",
-                                    isFromUser = false
-                                ))
+                                Log.i("A2UI_FLOW", "[CHECKOUT] ✅ Success and Feedback cards added")
                             }
                         } else {
-                            Log.w("A2UI_FLOW", "[CHECKOUT] ⚠️ Cart is empty")
-                            addMessage(UiMessage(
-                                text = "⚠️ Your cart is empty. Please add items before checkout.",
-                                isFromUser = false
-                            ))
+                            addMessage(UiMessage(text = "⚠️ Cart is empty. Please add items before checkout.", isFromUser = false))
                         }
                     } catch (e: Exception) {
-                        Log.e("A2UI_FLOW", "[CHECKOUT] ❌ Error during COD checkout", e)
+                        Log.e("A2UI_FLOW", "[CHECKOUT] ❌ COD Error: ${e.message}", e)
+                        addMessage(UiMessage(text = "❌ Checkout failed: ${e.message}", isFromUser = false))
+                    }
+                }
+            }
+            "selectRating" -> {
+                val rating = (context["rating"] as? Number)?.toInt() ?: 0
+                val label = context["label"] as? String ?: ""
+                Log.d("A2UI_FLOW", "[FEEDBACK] User selected rating: $rating ($label)")
+                // We could update the UI here to show selection, 
+                // but for now we'll just log it until "submit" is clicked
+            }
+            "submit_premium_feedback" -> {
+                val orderId = context["orderId"] as? String ?: "unknown"
+                // Extract comment from data model via renderer
+                val surfaceData = renderer.getDataModel(surfaceId)?.getDataSnapshot()
+                val comment = surfaceData?.get("comment") as? String ?: ""
+                
+                Log.i("A2UI_FLOW", "[FEEDBACK] Submitting for Order $orderId: Comment='$comment'")
+                
+                viewModelScope.launch {
+                    // Save to repository
+                    val ratingValue = com.example.a2ui_sample.domain.valueobjects.Rating(5)
+                    val feedback = Feedback(
+                        id = com.example.a2ui_sample.domain.valueobjects.FeedbackId(java.util.UUID.randomUUID().toString()),
+                        orderId = com.example.a2ui_sample.domain.valueobjects.OrderId(orderId),
+                        customerId = com.example.a2ui_sample.domain.valueobjects.CustomerId("guest"),
+                        foodRating = ratingValue,
+                        deliveryRating = ratingValue,
+                        packagingRating = ratingValue,
+                        overallRating = ratingValue,
+                        comment = comment,
+                        sentiment = Sentiment.POSITIVE
+                    )
+                    feedbackRepository.submitFeedback(feedback)
+                    
+                    withContext(Dispatchers.Main) {
                         addMessage(UiMessage(
-                            text = "❌ Checkout failed: ${e.message}",
+                            text = "Thank you for your feedback! 😊 Your response helps me improve future recommendations and service quality.",
                             isFromUser = false
                         ))
                     }
@@ -286,6 +316,20 @@ class RestaurantMainViewModel @Inject constructor(
                 if (orderId != null) {
                     sendMessage("track order $orderId")
                 }
+            }
+            "feedback_positive" -> {
+                Log.d("A2UI_FLOW", "[FEEDBACK] User clicked Positive")
+                addMessage(UiMessage(
+                    text = "Thank you! 😊 We're so glad you had a great experience.",
+                    isFromUser = false
+                ))
+            }
+            "feedback_negative" -> {
+                Log.d("A2UI_FLOW", "[FEEDBACK] User clicked Negative")
+                addMessage(UiMessage(
+                    text = "I'm sorry to hear that. 😔 Could you please explain what difficulty you faced? Your feedback helps us improve!",
+                    isFromUser = false
+                ))
             }
         }
     }
@@ -299,7 +343,7 @@ class RestaurantMainViewModel @Inject constructor(
     }
 
     override fun log(level: A2UILogLevel, message: String) {
-        Log.d("A2UI_RENDERER", "[$level] $message")
+        Log.d("A2UI_FLOW", "[$level] $message")
     }
 
     private fun loadFeaturedItems() {

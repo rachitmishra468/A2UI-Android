@@ -24,6 +24,8 @@ sealed class AgentResponse {
     data class PaymentChoice(val total: Int) : AgentResponse()
     data class NavigateToPayment(val orderId: String, val amount: Int) : AgentResponse()
     data class OrderPlaced(val order: Order) : AgentResponse()
+    data class FeedbackRequest(val orderId: String, val prompt: String) : AgentResponse()
+    data class SatisfactionSurvey(val prompt: String, val positiveText: String, val negativeText: String) : AgentResponse()
 
     data class DeliveryUpdate(val delivery: Delivery, val order: Order) : AgentResponse()
 

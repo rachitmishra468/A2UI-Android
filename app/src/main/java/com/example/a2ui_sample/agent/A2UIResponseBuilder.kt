@@ -76,6 +76,12 @@ class A2UIResponseBuilder {
             is AgentResponse.OrderPlaced -> {
                 messages.add(buildOrderPlacedSchema(surfaceId, response.order))
             }
+            is AgentResponse.FeedbackRequest -> {
+                messages.add(buildFeedbackRequestSchema(surfaceId, response.orderId, response.prompt))
+            }
+            is AgentResponse.SatisfactionSurvey -> {
+                messages.add(buildSatisfactionSchema(surfaceId, response.prompt, response.positiveText, response.negativeText))
+            }
             is AgentResponse.Error -> {
                 messages.add(buildSimpleMessage(surfaceId, "Error: ${response.message}"))
             }
@@ -1179,47 +1185,52 @@ class A2UIResponseBuilder {
             ch.add("success-icon")
             ch.add("title")
             ch.add("order-id")
-            ch.add("items-label")
+            ch.add("divider-top")
             ch.add("items-list")
-            ch.add("amount")
-            ch.add("action-row")
+            ch.add("divider-bot")
+            ch.add("amount-row")
+            ch.add("track-btn")
             add("children", ch)
             addProperty("align", "center")
             addProperty("padding", 20)
+            addProperty("spacing", 8)
         })
 
         comps.add(JsonObject().apply { addProperty("id", "success-icon"); addProperty("component", "Icon"); addProperty("name", "check_circle"); addProperty("size", 48); addProperty("tint", "#4CAF50") })
-        comps.add(JsonObject().apply { addProperty("id", "title"); addProperty("component", "Text"); addProperty("text", "Order Placed Successfully!"); addProperty("variant", "h5") })
-        comps.add(JsonObject().apply { addProperty("id", "order-id"); addProperty("component", "Text"); addProperty("text", "Order ID: ${order.id.value}"); addProperty("variant", "body") })
+        comps.add(JsonObject().apply { addProperty("id", "title"); addProperty("component", "Text"); addProperty("text", "Order Placed Successfully!"); addProperty("variant", "h5"); addProperty("color", "#4CAF50") })
+        comps.add(JsonObject().apply { addProperty("id", "order-id"); addProperty("component", "Text"); addProperty("text", "ID: ${order.id.value}"); addProperty("variant", "caption") })
         
-        comps.add(JsonObject().apply { addProperty("id", "items-label"); addProperty("component", "Text"); addProperty("text", "Items Ordered:"); addProperty("variant", "caption"); addProperty("padding", 8) })
-        
+        comps.add(JsonObject().apply { addProperty("id", "divider-top"); addProperty("component", "Divider") })
+
         comps.add(JsonObject().apply {
             addProperty("id", "items-list")
             addProperty("component", "Column")
             val ch = JsonArray()
             order.items.forEachIndexed { index, item ->
-                val itemId = "item-$index"
+                val itemId = "order-item-$index"
                 comps.add(JsonObject().apply {
                     addProperty("id", itemId)
                     addProperty("component", "Text")
-                    addProperty("text", "${item.quantity}x ${item.menuItemName}")
+                    addProperty("text", "• ${item.quantity}x ${item.menuItemName}")
                     addProperty("variant", "body")
                 })
                 ch.add(itemId)
             }
             add("children", ch)
+            addProperty("align", "start")
         })
 
-        comps.add(JsonObject().apply { addProperty("id", "amount"); addProperty("component", "Text"); addProperty("text", "Total Amount: ₹${order.totalAmount.amount}"); addProperty("variant", "subtitle"); addProperty("padding", 12) })
+        comps.add(JsonObject().apply { addProperty("id", "divider-bot"); addProperty("component", "Divider") })
 
         comps.add(JsonObject().apply {
-            addProperty("id", "action-row")
+            addProperty("id", "amount-row")
             addProperty("component", "Row")
-            val ch = JsonArray()
-            ch.add("track-btn")
+            val ch = JsonArray(); ch.add("total-label"); ch.add("total-val")
             add("children", ch)
+            addProperty("justify", "spaceBetween")
         })
+        comps.add(JsonObject().apply { addProperty("id", "total-label"); addProperty("component", "Text"); addProperty("text", "Paid via COD"); addProperty("variant", "subtitle") })
+        comps.add(JsonObject().apply { addProperty("id", "total-val"); addProperty("component", "Text"); addProperty("text", "₹${order.totalAmount.amount}"); addProperty("variant", "h5") })
 
         comps.add(JsonObject().apply {
             addProperty("id", "track-btn")
@@ -1232,6 +1243,198 @@ class A2UIResponseBuilder {
             val ctx = JsonObject()
             ctx.addProperty("orderId", order.id.value)
             event.add("context", ctx)
+            action.add("event", event)
+            add("action", action)
+        })
+
+        update.add("components", comps)
+        root.add("updateComponents", update)
+        return gson.toJson(root)
+    }
+
+    private fun buildFeedbackRequestSchema(surfaceId: String, orderId: String, prompt: String): String {
+        val root = JsonObject()
+        root.addProperty("version", "v0.10")
+        val update = JsonObject()
+        update.addProperty("surfaceId", surfaceId)
+        val comps = JsonArray()
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "root")
+            addProperty("component", "Card")
+            addProperty("child", "main-col")
+        })
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "main-col")
+            addProperty("component", "Column")
+            val ch = JsonArray()
+            ch.add("header-row")
+            ch.add("divider-top")
+            ch.add("prompt-txt")
+            ch.add("rating-list")
+            ch.add("comment-box")
+            ch.add("submit-btn")
+            add("children", ch)
+            addProperty("padding", 16)
+            addProperty("align", "stretch")
+            addProperty("spacing", 12)
+        })
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "header-row")
+            addProperty("component", "Row")
+            val ch = JsonArray(); ch.add("star-icon"); ch.add("title-txt")
+            add("children", ch)
+            addProperty("align", "center")
+        })
+        comps.add(JsonObject().apply { addProperty("id", "star-icon"); addProperty("component", "Icon") ; addProperty("name", "star"); addProperty("tint", "#FFD700"); addProperty("size", 24) })
+        comps.add(JsonObject().apply { addProperty("id", "title-txt"); addProperty("component", "Text"); addProperty("text", " Rate Your Experience"); addProperty("variant", "h5") })
+
+        comps.add(JsonObject().apply { addProperty("id", "divider-top"); addProperty("component", "Divider") })
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "prompt-txt")
+            addProperty("component", "Text")
+            addProperty("text", prompt)
+            addProperty("variant", "body")
+            addProperty("color", "#666666")
+        })
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "rating-list")
+            addProperty("component", "Column")
+            val ch = JsonArray()
+            ch.add("btn-excellent"); ch.add("btn-good"); ch.add("btn-average"); ch.add("btn-needs-improvement")
+            add("children", ch)
+            addProperty("spacing", 8)
+        })
+
+        fun createRatingBtn(id: String, text: String, rating: Int) {
+            comps.add(JsonObject().apply {
+                addProperty("id", id)
+                addProperty("component", "Button")
+                addProperty("text", text)
+                addProperty("variant", "secondary")
+                val action = JsonObject()
+                val event = JsonObject()
+                event.addProperty("name", "selectRating")
+                val ctx = JsonObject()
+                ctx.addProperty("rating", rating)
+                ctx.addProperty("label", text)
+                event.add("context", ctx)
+                action.add("event", event)
+                add("action", action)
+            })
+        }
+
+        createRatingBtn("btn-excellent", "Excellent 🤩", 5)
+        createRatingBtn("btn-good", "Good 🙂", 4)
+        createRatingBtn("btn-average", "Average 😐", 3)
+        createRatingBtn("btn-needs-improvement", "Needs Improvement 😕", 2)
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "comment-box")
+            addProperty("component", "TextField")
+            addProperty("label", "Add a comment (Optional)")
+            addProperty("placeholder", "How can we improve?")
+            val value = JsonObject()
+            value.addProperty("path", "/comment")
+            add("value", value)
+        })
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "submit-btn")
+            addProperty("component", "Button")
+            addProperty("text", "Submit Feedback")
+            addProperty("variant", "primary")
+            val action = JsonObject()
+            val event = JsonObject()
+            event.addProperty("name", "submit_premium_feedback")
+            val ctx = JsonObject()
+            ctx.addProperty("orderId", orderId)
+            event.add("context", ctx)
+            action.add("event", event)
+            add("action", action)
+        })
+
+        update.add("components", comps)
+        root.add("updateComponents", update)
+        
+        // Initial data model for comment
+        val rootData = JsonObject()
+        rootData.addProperty("version", "v0.10")
+        val dataUpdate = JsonObject()
+        dataUpdate.addProperty("surfaceId", surfaceId)
+        dataUpdate.addProperty("path", "/comment")
+        dataUpdate.addProperty("value", "")
+        rootData.add("updateDataModel", dataUpdate)
+        
+        return gson.toJson(root) + "\n" + gson.toJson(rootData)
+    }
+
+    private fun buildSatisfactionSchema(surfaceId: String, prompt: String, positiveText: String, negativeText: String): String {
+        val root = JsonObject()
+        root.addProperty("version", "v0.10")
+        val update = JsonObject()
+        update.addProperty("surfaceId", surfaceId)
+        val comps = JsonArray()
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "root")
+            addProperty("component", "Card")
+            addProperty("child", "content-col")
+        })
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "content-col")
+            addProperty("component", "Column")
+            val ch = JsonArray()
+            ch.add("prompt-text")
+            ch.add("actions")
+            add("children", ch)
+            addProperty("padding", 12)
+            addProperty("align", "stretch")
+        })
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "prompt-text")
+            addProperty("component", "Text")
+            addProperty("text", prompt)
+            addProperty("variant", "body")
+        })
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "actions")
+            addProperty("component", "Row")
+            val ch = JsonArray()
+            ch.add("pos-btn")
+            ch.add("neg-btn")
+            add("children", ch)
+            addProperty("justify", "spaceAround")
+            addProperty("padding", 8)
+        })
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "pos-btn")
+            addProperty("component", "Button")
+            addProperty("text", positiveText)
+            addProperty("variant", "text")
+            val action = JsonObject()
+            val event = JsonObject()
+            event.addProperty("name", "feedback_positive")
+            action.add("event", event)
+            add("action", action)
+        })
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "neg-btn")
+            addProperty("component", "Button")
+            addProperty("text", negativeText)
+            addProperty("variant", "text")
+            val action = JsonObject()
+            val event = JsonObject()
+            event.addProperty("name", "feedback_negative")
             action.add("event", event)
             add("action", action)
         })
