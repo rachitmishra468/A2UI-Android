@@ -4,14 +4,31 @@ import com.google.gson.annotations.SerializedName
 
 /**
  * IntentResult
- * Structured output from Gemini reasoning engine.
+ * Updated to follow the Restaurant Master Agent decision logic.
  */
 data class IntentResult(
-    @SerializedName("intent") val intent: UserIntent,
-    @SerializedName("language") val language: String,
-    @SerializedName("entities") val entities: Map<String, Any> = emptyMap(),
-    @SerializedName("confidence") val confidence: Double,
-    @SerializedName("rawQuery") val rawQuery: String
+    @SerializedName("mode") val mode: String? = null, // "INTENT" or "TOOL_WORKFLOW"
+    @SerializedName("intent") val intent: String? = null,
+    @SerializedName("category") val category: String? = null,
+    @SerializedName("diet") val diet: String? = null,
+    @SerializedName("priceLimit") val priceLimit: Int? = null,
+    @SerializedName("tasks") val tasks: List<MasterAgentTask>? = null,
+    @SerializedName("language") val language: String? = "en",
+    @SerializedName("rawQuery") val rawQuery: String? = ""
+)
+
+data class MasterAgentTask(
+    @SerializedName("tool") val tool: String? = null,
+    @SerializedName("itemName") val itemName: String? = null,
+    @SerializedName("category") val category: String? = null,
+    @SerializedName("diet") val diet: String? = null,
+    @SerializedName("priceLimit") val priceLimit: Int? = null,
+    @SerializedName("quantity") val quantity: Int? = null,
+    @SerializedName("date") val date: String? = null,
+    @SerializedName("time") val time: String? = null,
+    @SerializedName("peopleCount") val peopleCount: Int? = null,
+    @SerializedName("rating") val rating: Int? = null,
+    @SerializedName("comment") val comment: String? = null
 )
 
 enum class UserIntent {
@@ -41,3 +58,11 @@ enum class UserIntent {
     AI_LIMIT_REACHED,
     UNKNOWN
 }
+
+/**
+ * Legacy wrapper for compatibility
+ */
+data class IntentResultWrapper(
+    val intent: UserIntent,
+    val entities: Map<String, Any>
+)

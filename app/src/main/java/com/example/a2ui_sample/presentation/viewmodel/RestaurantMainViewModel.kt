@@ -255,27 +255,22 @@ class RestaurantMainViewModel @Inject constructor(
                     }
                 }
 
-                var a2uiAdded = false
                 responses?.forEach { response ->
                     if (response.trim().startsWith("{") && response.contains("version")) {
                         _loadingState.value = ChatLoadingState(status = "🎨 Preparing view...")
                         
-                        withContext(Dispatchers.Default) {
-                            val jsonList = splitA2UICommand(response)
-                            jsonList.forEach { subJson ->
-                                renderer.processMessage(subJson)
-                            }
-                        }
+                        // Process the message through the renderer
+                        renderer.processMessage(response)
 
-                        if (!a2uiAdded) {
-                            Log.d("A2UI_RESTORE", "JSON Found for new message")
+                        // Only add to chat if it's an updateComponents message (the UI part)
+                        if (response.contains("updateComponents")) {
+                            Log.d("A2UI_RESTORE", "UI JSON Found for message")
                             addMessage(UiMessage(
                                 text = "I've updated the view for you:",
                                 isFromUser = false,
                                 isA2UI = true,
                                 a2uiPayload = response
                             ))
-                            a2uiAdded = true
                         }
                     } else {
                         addMessage(UiMessage(text = response, isFromUser = false))
@@ -380,6 +375,16 @@ class RestaurantMainViewModel @Inject constructor(
 
     private fun splitA2UICommand(json: String): List<String> {
         return try {
+            // Handle multiple JSON objects separated by newlines (JSONL format)
+            val lines = json.trim().split("\n").filter { it.isNotBlank() }
+            if (lines.size > 1) {
+                val allResults = mutableListOf<String>()
+                lines.forEach { line ->
+                    allResults.addAll(splitA2UICommand(line))
+                }
+                return allResults
+            }
+
             val jsonObj = com.google.gson.JsonParser.parseString(json).asJsonObject
             val version = if (jsonObj.has("version")) jsonObj.get("version").asString else "v0.10"
             val result = mutableListOf<String>()

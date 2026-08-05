@@ -1,7 +1,7 @@
 package com.example.a2ui_sample.agent
 
 import com.example.a2ui_sample.domain.model.AgentResponse
-import com.example.a2ui_sample.domain.model.IntentResult
+import com.example.a2ui_sample.domain.model.IntentResultWrapper
 import com.example.a2ui_sample.domain.repository.DeliveryRepository
 import com.example.a2ui_sample.domain.repository.OrderRepository
 import com.example.a2ui_sample.domain.valueobjects.CustomerId
@@ -18,28 +18,22 @@ class DeliveryAgent(
     private val menuRepository: com.example.a2ui_sample.domain.repository.MenuRepository
 ) {
 
-    suspend fun execute(intent: IntentResult): AgentResponse {
+    suspend fun execute(intent: IntentResultWrapper): AgentResponse {
         return when (intent.intent) {
             com.example.a2ui_sample.domain.model.UserIntent.ORDER_TRACKING -> {
                 val orderIdStr = intent.entities["order_id"] as? String
                 
                 if (orderIdStr != null) {
                     val orderId = OrderId(orderIdStr)
-                    // Always fetch latest from database
                     val order = orderRepository.getOrderById(orderId)
-                    android.util.Log.d("A2UI_FLOW", "[ORDER_TRACKING] Order Retrieved: $orderIdStr")
                     
                     if (order != null) {
-                        android.util.Log.d("A2UI_FLOW", "[ORDER_TRACKING] Database Status = ${order.status}")
-                        
                         if (order.status == com.example.a2ui_sample.domain.valueobjects.OrderStatus.CANCELLED) {
-                            android.util.Log.d("A2UI_FLOW", "[ORDER_TRACKING] Response Status = CANCELLED")
                             return AgentResponse.Message("❌ Order Cancelled\nOrder ID: ${order.id.value}")
                         }
 
                         val delivery = deliveryRepository.getDeliveryByOrderId(orderId)
                         if (delivery != null) {
-                            android.util.Log.d("A2UI_FLOW", "[ORDER_TRACKING] Response Status = ${order.status}")
                             AgentResponse.DeliveryUpdate(delivery, order)
                         } else {
                             AgentResponse.Message("I found your order ${order.id.value}, but delivery tracking is not available for it yet. Current status: ${order.status.name}")
@@ -51,17 +45,12 @@ class DeliveryAgent(
                     val allOrders = orderRepository.getAllOrders().first()
                     if (allOrders.isNotEmpty()) {
                         val latestOrder = allOrders.first()
-                        android.util.Log.d("A2UI_FLOW", "[ORDER_TRACKING] Last Order Retrieved: ${latestOrder.id.value}")
-                        android.util.Log.d("A2UI_FLOW", "[ORDER_TRACKING] Database Status = ${latestOrder.status}")
-
                         if (latestOrder.status == com.example.a2ui_sample.domain.valueobjects.OrderStatus.CANCELLED) {
-                            android.util.Log.d("A2UI_FLOW", "[ORDER_TRACKING] Response Status = CANCELLED")
                             return AgentResponse.Message("❌ Order Cancelled\nOrder ID: ${latestOrder.id.value}")
                         }
 
                         val delivery = deliveryRepository.getDeliveryByOrderId(latestOrder.id)
                         if (delivery != null) {
-                            android.util.Log.d("A2UI_FLOW", "[ORDER_TRACKING] Response Status = ${latestOrder.status}")
                             AgentResponse.DeliveryUpdate(delivery, latestOrder)
                         } else {
                             AgentResponse.Message("I found your recent order ${latestOrder.id.value}, but delivery tracking is not available for it yet. Current status: ${latestOrder.status.name}")
@@ -83,7 +72,6 @@ class DeliveryAgent(
                 val allOrders = orderRepository.getAllOrders().first()
                 if (allOrders.isNotEmpty()) {
                     val latestOrder = allOrders.first()
-                    // Add items from latest order to cart
                     latestOrder.items.forEach { item ->
                         repeat(item.quantity) {
                             menuRepository.addToCart(item.menuItemId)

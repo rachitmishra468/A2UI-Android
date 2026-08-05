@@ -1,7 +1,7 @@
 package com.example.a2ui_sample.agent
 
 import com.example.a2ui_sample.domain.model.AgentResponse
-import com.example.a2ui_sample.domain.model.IntentResult
+import com.example.a2ui_sample.domain.model.IntentResultWrapper
 import com.example.a2ui_sample.domain.model.Reservation
 import com.example.a2ui_sample.domain.model.TableBooking
 import com.example.a2ui_sample.domain.repository.ReservationRepository
@@ -11,11 +11,11 @@ import java.util.Locale
 
 /**
  * BookingAgent
- * Execution specialist for table reservations.
+ * Specialist for table reservations.
  */
 class BookingAgent(private val repository: ReservationRepository) {
 
-    suspend fun execute(intent: IntentResult): AgentResponse {
+    suspend fun execute(intent: IntentResultWrapper): AgentResponse {
         return when (intent.intent) {
             com.example.a2ui_sample.domain.model.UserIntent.BOOKING_CREATE -> {
                 val people = (intent.entities["people_count"] as? Number)?.toInt()
@@ -31,8 +31,8 @@ class BookingAgent(private val repository: ReservationRepository) {
                         val reservation = Reservation(
                             id = ReservationId(),
                             customerId = CustomerId("guest"),
-                            restaurantId = RestaurantId("rest_1"), // Default for demo
-                            restaurantName = "The Grand Kitchen",   // Default for demo
+                            restaurantId = RestaurantId("rest_1"),
+                            restaurantName = "The Grand Kitchen",
                             tableId = TableId((1..20).random()),
                             timeSlot = TimeSlot(startMillis, startMillis + 3600000),
                             partySize = people,
@@ -42,9 +42,6 @@ class BookingAgent(private val repository: ReservationRepository) {
                         
                         repository.createReservation(reservation)
                         
-                        // Map back to TableBooking for UI compatibility in AgentResponse if needed,
-                        // or better, update AgentResponse to handle Reservation.
-                        // For now, let's keep TableBooking as a UI model.
                         val tableBooking = TableBooking(
                             id = reservation.id.value,
                             numberOfPeople = reservation.partySize,
@@ -57,7 +54,6 @@ class BookingAgent(private val repository: ReservationRepository) {
                         
                         AgentResponse.BookingConfirmation(tableBooking)
                     } catch (e: Exception) {
-                        android.util.Log.e("A2UI_BOOKING", "Failed to save booking", e)
                         AgentResponse.Error("⚠️ Unable to save booking. Please try again.")
                     }
                 } else {
@@ -65,8 +61,6 @@ class BookingAgent(private val repository: ReservationRepository) {
                 }
             }
             com.example.a2ui_sample.domain.model.UserIntent.BOOKING_LIST -> {
-                // In a real app, we'd fetch from repository.
-                // For this demo, the UI observes getUpcomingReservations(CustomerId("guest"))
                 AgentResponse.Message("I've opened your booking history for you.")
             }
             com.example.a2ui_sample.domain.model.UserIntent.BOOKING_CANCEL -> {

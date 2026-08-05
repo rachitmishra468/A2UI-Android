@@ -1,17 +1,16 @@
 package com.example.a2ui_sample.agent
 
 import com.example.a2ui_sample.domain.model.AgentResponse
-import com.example.a2ui_sample.domain.model.IntentResult
+import com.example.a2ui_sample.domain.model.IntentResultWrapper
 import com.example.a2ui_sample.domain.repository.MenuRepository
 
 /**
  * MenuAgent
- * Execution specialist for menu-related operations.
- * Redesigned to perform direct actions based on Gemini-extracted intents.
+ * Specialist for menu-related operations.
  */
 class MenuAgent(private val repository: MenuRepository) {
 
-    fun execute(intent: IntentResult): AgentResponse {
+    fun execute(intent: IntentResultWrapper): AgentResponse {
         return when (intent.intent) {
             com.example.a2ui_sample.domain.model.UserIntent.MENU_SEARCH -> {
                 val category = intent.entities["category"] as? String
@@ -19,15 +18,12 @@ class MenuAgent(private val repository: MenuRepository) {
                 val rawMaxPrice = (intent.entities["price_limit"] as? Number)?.toInt()
                 val peopleCount = (intent.entities["people_count"] as? Number)?.toInt() ?: 1
                 
-                // Smart Budget: If total budget is given, divide by people to find per-item price
                 val maxPrice = if (rawMaxPrice != null && peopleCount > 1 && rawMaxPrice > 500) {
                     rawMaxPrice / peopleCount
                 } else {
                     rawMaxPrice
                 }
 
-                android.util.Log.d("A2UI_FLOW", "[MENU_SEARCH] Filtering by: cat=$category, price=$maxPrice (Total was $rawMaxPrice for $peopleCount people)")
-                
                 val items = repository.searchMenu(category, diet, maxPrice)
                 
                 val message = when {
@@ -53,7 +49,6 @@ class MenuAgent(private val repository: MenuRepository) {
                 }.take(5)
 
                 if (items.isEmpty() && category != null) {
-                    // Fallback to search if no bestsellers found
                     return execute(intent.copy(intent = com.example.a2ui_sample.domain.model.UserIntent.MENU_SEARCH))
                 }
 

@@ -1,0 +1,211 @@
+package com.example.a2ui_sample.agent
+
+import android.util.Log
+import com.example.a2ui_sample.domain.model.AgentResponse
+import com.example.a2ui_sample.domain.repository.*
+import com.example.a2ui_sample.domain.valueobjects.*
+import com.google.adk.kt.annotations.Tool
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
+import java.util.*
+
+/**
+ * RestaurantTools
+ * Specialist tools for the ADK-based Restaurant Agent.
+ */
+class RestaurantTools(
+    private val repository: MenuRepository,
+    private val reservationRepository: ReservationRepository,
+    private val orderRepository: OrderRepository,
+    private val deliveryRepository: DeliveryRepository,
+    private val feedbackRepository: FeedbackRepository
+) {
+    var lastResponse: AgentResponse? = null
+
+    @Tool(
+        name = "search_menu",
+        description = "Search for food items by category, diet, or budget."
+    )
+    fun searchMenu(
+        category: String? = null,
+        diet: String? = null,
+        priceLimit: Int? = null,
+        peopleCount: Int? = 1
+    ): String {
+        Log.d("ADK_TOOLS", "TOOL: searchMenu started")
+        
+        val actualMaxPrice = if (priceLimit != null && peopleCount != null && peopleCount > 1) {
+            priceLimit / (peopleCount ?: 1)
+        } else priceLimit
+
+        val items = repository.searchMenu(category, diet, actualMaxPrice)
+        
+        val message = when {
+            items.isEmpty() -> "I couldn't find any matching items."
+            priceLimit != null -> "For $peopleCount people within ₹$priceLimit, I suggest these dishes:"
+            else -> "Here are some options for you:"
+        }
+
+        lastResponse = AgentResponse.MenuResults(items, message)
+        return "Found ${items.size} items."
+    }
+
+    @Tool(
+        name = "add_item_to_cart",
+        description = "Add a food item to the customer's cart. Requires exact item name."
+    )
+    fun addItemToCart(
+        /** Exact name of the food item (e.g., 'Masala Dosa', 'Paneer Butter Masala') */
+        itemName: String
+    ): String = runBlocking {
+        Log.d("ADK_TOOLS", "TOOL: addItemToCart started for '$itemName'")
+
+        val query = itemName.trim().replace(Regex("\\s+"), " ")
+        val items = repository.getMenuItems()
+
+        var item = items.firstOrNull { it.name.equals(query, ignoreCase = true) }
+
+        if (item == null) {
+            Log.d("ADK_TOOLS", "TOOL: Exact match not found, trying fuzzy match")
+            val containsMatches = items.filter {
+                it.name.contains(itemName, ignoreCase = true) || itemName.contains(it.name, ignoreCase = true)
+            }
+            if (containsMatches.size == 1) {
+                Log.d("ADK_TOOLS", "TOOL: Found single fuzzy match: ${containsMatches.first().name}")
+                item = containsMatches.first()
+            } else if (containsMatches.size > 1) {
+                Log.d("ADK_TOOLS", "TOOL: Multiple matches found (${containsMatches.size})")
+                lastResponse = AgentResponse.MenuResults(containsMatches, "Multiple items match '$itemName'. Which one?")
+                return@runBlocking "Multiple items match '$itemName'. Which one?"
+            }
+        }
+
+        if (item == null) {
+            Log.d("ADK_TOOLS", "TOOL: Item not found at all")
+            return@runBlocking "❌ Item '$itemName' not found in menu"
+        }
+
+        Log.d("ADK_TOOLS", "TOOL: Adding item ID ${item.id} to cart")
+        repository.addToCart(item.id)
+        lastResponse = AgentResponse.CartUpdate(item, repository.getCart().sumOf { it.quantity })
+        "✅ ${item.name} added to cart (₹${item.price.amount})"
+    }
+
+    @Tool(
+        name = "manage_cart",
+        description = "View, clear, or remove items from the cart. Action can be 'VIEW', 'CLEAR', or 'REMOVE'."
+    )
+    fun manageCart(action: String, itemName: String? = null): String = runBlocking {
+        Log.d("ADK_TOOLS", "TOOL: manageCart('$action')")
+        
+        when (action.uppercase()) {
+            "VIEW" -> {
+                val items = repository.getCart()
+                val total = repository.getCartTotal()
+                lastResponse = AgentResponse.CartView(items, (total * 1.05).toInt())
+                "Cart has ${items.size} items."
+            }
+            "CLEAR" -> {
+                repository.clearCart()
+                lastResponse = AgentResponse.Message("Your cart has been cleared.")
+                "Cart cleared."
+            }
+            "REMOVE" -> {
+                if (itemName != null) {
+                    val cart = repository.getCart()
+                    val item = cart.find { it.menuItem.name.contains(itemName, ignoreCase = true) }
+                    if (item != null) {
+                        repository.removeFromCart(item.menuItem.id)
+                        lastResponse = AgentResponse.Message("${item.menuItem.name} removed.")
+                        "Removed ${item.menuItem.name}."
+                    } else "Item not in cart."
+                } else "What should I remove?"
+            }
+            else -> "Invalid cart action."
+        }
+    }
+
+    @Tool(
+        name = "checkout",
+        description = "Proceed to checkout and show order summary."
+    )
+    fun checkout(): String = runBlocking {
+        val items = repository.getCart()
+        if (items.isEmpty()) return@runBlocking "Your cart is empty."
+        
+        val subtotal = repository.getCartTotal()
+        val tax = (subtotal * 0.05).toInt()
+        lastResponse = AgentResponse.OrderSummary(items, subtotal, tax, subtotal + tax)
+        "Showing order summary for ₹${subtotal + tax}."
+    }
+
+    @Tool(
+        name = "track_order",
+        description = "Track the status of the last order or a specific order ID."
+    )
+    fun trackOrder(orderId: String? = null): String = runBlocking {
+        val id = if (orderId != null) OrderId(orderId) else {
+            orderRepository.getAllOrders().first().firstOrNull()?.id
+        }
+        
+        if (id == null) return@runBlocking "No orders found to track."
+        
+        val order = orderRepository.getOrderById(id)
+        if (order?.status == OrderStatus.CANCELLED) {
+            lastResponse = AgentResponse.Message("❌ Order Cancelled\nOrder ID: ${id.value}")
+            return@runBlocking "Order ${id.value} is cancelled."
+        }
+
+        val delivery = deliveryRepository.getDeliveryByOrderId(id)
+        if (delivery != null && order != null) {
+            lastResponse = AgentResponse.DeliveryUpdate(delivery, order)
+            "Tracking order ${id.value}: ${delivery.status}."
+        } else {
+            "Order status: ${order?.status ?: "Unknown"}."
+        }
+    }
+
+    @Tool(
+        name = "get_special_offers",
+        description = "Get current special offers and discounts."
+    )
+    fun getSpecialOffers(): String {
+        return "Currently we have 20% off on all North Indian main courses!"
+    }
+
+    @Tool(
+        name = "get_menu_categories",
+        description = "Get list of available food categories (e.g. Pizza, North Indian, Drinks)."
+    )
+    fun getMenuCategories(): String {
+        val categories = repository.getMenuItems().map { it.category }.distinct().joinToString(", ")
+        return "Available categories: $categories"
+    }
+
+    @Tool(
+        name = "book_table",
+        description = "Create a table reservation. Requires date (YYYY-MM-DD), time (HH:mm), and peopleCount."
+    )
+    fun bookTable(date: String, time: String, peopleCount: Int): String = runBlocking {
+        try {
+            val reservation = com.example.a2ui_sample.domain.model.Reservation(
+                id = ReservationId(),
+                customerId = CustomerId("guest"),
+                restaurantId = RestaurantId("rest_1"),
+                restaurantName = "Luxe Dining",
+                tableId = TableId((1..20).random()),
+                timeSlot = TimeSlot(System.currentTimeMillis(), System.currentTimeMillis() + 3600000),
+                partySize = peopleCount,
+                status = ReservationStatus.CONFIRMED,
+                source = BookingSource.CHAT
+            )
+            reservationRepository.createReservation(reservation)
+            lastResponse = AgentResponse.BookingConfirmation(com.example.a2ui_sample.domain.model.TableBooking(
+                reservation.id.value, peopleCount, date, time, reservation.tableId?.value ?: 0, reservation.status, reservation.createdAt
+            ))
+            "✅ Table booked for $peopleCount on $date at $time."
+        } catch (e: Exception) {
+            "❌ Booking failed."
+        }
+    }
+}

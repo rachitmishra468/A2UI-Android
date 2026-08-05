@@ -17,7 +17,7 @@ private const val TAG = "A2UI_FEEDBACK"
  */
 class FeedbackAgent(private val repository: FeedbackRepository) {
 
-    suspend fun execute(intent: IntentResult): AgentResponse {
+    suspend fun execute(intent: IntentResultWrapper): AgentResponse {
         return when (intent.intent) {
             UserIntent.FEEDBACK_SUBMIT -> handleSubmitFeedback(intent)
             UserIntent.FEEDBACK_VIEW -> handleViewFeedback(intent)
@@ -27,7 +27,7 @@ class FeedbackAgent(private val repository: FeedbackRepository) {
         }
     }
 
-    private suspend fun handleSubmitFeedback(intent: IntentResult): AgentResponse {
+    private suspend fun handleSubmitFeedback(intent: IntentResultWrapper): AgentResponse {
         val orderId = intent.entities["order_id"] as? String
         val overallRating = (intent.entities["rating"] as? Number)?.toInt() ?: 0
         val comment = intent.entities["comment"] as? String ?: ""
@@ -40,7 +40,6 @@ class FeedbackAgent(private val repository: FeedbackRepository) {
             return AgentResponse.FeedbackForm(orderId, "Please rate your experience with order $orderId.")
         }
 
-        // Logic to extract other ratings if available, else default to overall
         val foodRating = (intent.entities["food_rating"] as? Number)?.toInt() ?: overallRating
         val deliveryRating = (intent.entities["delivery_rating"] as? Number)?.toInt() ?: overallRating
         val packagingRating = (intent.entities["packaging_rating"] as? Number)?.toInt() ?: overallRating
@@ -50,7 +49,7 @@ class FeedbackAgent(private val repository: FeedbackRepository) {
         val feedback = Feedback(
             id = FeedbackId(UUID.randomUUID().toString()),
             orderId = OrderId(orderId),
-            customerId = CustomerId("guest"), // Mocking customer
+            customerId = CustomerId("guest"),
             foodRating = Rating(foodRating),
             deliveryRating = Rating(deliveryRating),
             packagingRating = Rating(packagingRating),
@@ -61,7 +60,6 @@ class FeedbackAgent(private val repository: FeedbackRepository) {
 
         repository.submitFeedback(feedback)
 
-        // Rule-based Support Ticket Creation
         if (overallRating < 3) {
             createSupportTicket(feedback)
             return AgentResponse.FeedbackSubmitted(feedback, "I'm very sorry you had a poor experience. I've submitted your feedback and opened a support ticket for the restaurant manager to investigate immediately.")
@@ -70,7 +68,7 @@ class FeedbackAgent(private val repository: FeedbackRepository) {
         return AgentResponse.FeedbackSubmitted(feedback, "Thank you for your valuable feedback! We're glad you enjoyed your experience.")
     }
 
-    private suspend fun handleViewFeedback(intent: IntentResult): AgentResponse {
+    private suspend fun handleViewFeedback(intent: IntentResultWrapper): AgentResponse {
         val customerId = CustomerId("guest")
         val feedbacks = repository.getFeedbackByCustomer(customerId)
         
@@ -81,14 +79,13 @@ class FeedbackAgent(private val repository: FeedbackRepository) {
         }
     }
 
-    private suspend fun handleUpdateFeedback(intent: IntentResult): AgentResponse {
+    private suspend fun handleUpdateFeedback(intent: IntentResultWrapper): AgentResponse {
         val feedbackId = intent.entities["feedback_id"] as? String
         if (feedbackId == null) return AgentResponse.Message("Please provide the feedback ID you wish to update.")
         
         val existing = repository.getFeedbackById(FeedbackId(feedbackId))
             ?: return AgentResponse.Error("Feedback not found.")
             
-        // Update logic...
         return AgentResponse.Message("Feedback updated successfully.")
     }
 
