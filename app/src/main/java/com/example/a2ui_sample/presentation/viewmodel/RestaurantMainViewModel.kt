@@ -2,6 +2,8 @@ package com.example.a2ui_sample.presentation.viewmodel
 
 import android.util.Log
 import com.example.a2ui_sample.agent.ADKRestaurantMasterAgent
+import com.example.a2ui_sample.agent.ConversationHelper
+import com.example.a2ui_sample.agent.UserProfileBuilder
 import com.example.a2ui_sample.domain.model.*
 import com.example.a2ui_sample.domain.repository.FeedbackRepository
 import com.example.a2ui_sample.domain.repository.MenuRepository
@@ -83,8 +85,47 @@ class RestaurantMainViewModel @Inject constructor(
             Log.d("A2UI_RESTORE", "History Loading Started")
             val history = chatMessageDao.getAllMessages().first()
             if (history.isEmpty()) {
-                // Welcome message
-                addMessage(UiMessage(text = "Hello! I'm your AI Restaurant Assistant. How can I help you today?", isFromUser = false))
+                // Show proactive welcome with time-based greeting
+                val greeting = ConversationHelper.getGreeting()
+                val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+                val suggestion = when (hour) {
+                    in 6..10 -> "Ready for a delicious breakfast? 🌅"
+                    in 11..14 -> "Hungry for lunch? 🍽️"
+                    in 18..21 -> "Perfect timing for dinner! 🌆"
+                    else -> "Craving something tasty? 😋"
+                }
+                
+                addMessage(UiMessage(
+                    text = "$greeting I'm your AI Restaurant Assistant. $suggestion", 
+                    isFromUser = false
+                ))
+                
+                // Check for proactive suggestions based on history
+                launch {
+                    try {
+                        val orders = orderRepository.getAllOrders().first()
+                        val bookings = reservationRepository.getUpcomingReservations(CustomerId("guest")).first()
+                        val feedback = feedbackRepository.getFeedbackFlow().first()
+                        
+                        if (orders.size >= 3) {
+                            // User has order history - show proactive suggestions
+                            val profileBuilder = UserProfileBuilder(repository)
+                            val profile = profileBuilder.buildProfile(orders, bookings, feedback)
+                            val suggestions = profileBuilder.generateProactiveSuggestions(profile)
+                            
+                            if (suggestions.isNotEmpty()) {
+                                // Show first proactive suggestion after a small delay
+                                kotlinx.coroutines.delay(1000)
+                                addMessage(UiMessage(
+                                    text = suggestions.first(),
+                                    isFromUser = false
+                                ))
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.e("A2UI_RESTORE", "Error generating proactive suggestions", e)
+                    }
+                }
             } else {
                 val messages = history.map { entity ->
                     UiMessage(
@@ -176,24 +217,67 @@ class RestaurantMainViewModel @Inject constructor(
                 }
             }
             "payLater" -> {
-                android.util.Log.d("A2UI_FLOW", "[CHECKOUT] COD Selected")
+                Log.d("A2UI_FLOW", "[CHECKOUT] COD button clicked")
                 viewModelScope.launch {
-                    val order = checkout()
-                    if (order != null) {
-                        android.util.Log.d("A2UI_FLOW", "[CHECKOUT] Order Created (COD): ${order.id.value}")
-                        android.util.Log.d("A2UI_FLOW", "[CHECKOUT] Cart Cleared")
-                        
-                        val payload = adkMasterAgent?.buildOrderPlacedResponse(order)
-                        if (payload != null) {
-                            val msg = UiMessage(
-                                text = "Order placed successfully (COD)! ID: ${order.id.value}",
-                                isFromUser = false,
-                                isA2UI = true,
-                                a2uiPayload = payload
-                            )
-                            addMessage(msg)
-                            renderer.processMessage(payload)
+                    try {
+                        val order = checkout()
+                        if (order != null) {
+                            Log.i("A2UI_FLOW", "[CHECKOUT] ✅ Order Created (COD): ${order.id.value}")
+                            
+                            val payload = adkMasterAgent?.buildOrderPlacedResponse(order)
+                            if (payload != null) {
+                                // CRITICAL: Process renderer on Main thread FIRST
+                                withContext(Dispatchers.Main) {
+                                    renderer.processMessage(payload)
+                                    Log.d("A2UI_FLOW", "[CHECKOUT] Renderer processed A2UI payload")
+                                }
+                                
+                                // Then add message to trigger recomposition
+                                val msg = UiMessage(
+                                    text = "✅ Order placed successfully (COD)! Order ID: ${order.id.value}",
+                                    isFromUser = false,
+                                    isA2UI = true,
+                                    a2uiPayload = payload
+                                )
+                                withContext(Dispatchers.Main) {
+                                    addMessage(msg)
+                                }
+                                
+                                // Add satisfaction feedback prompt after order placement
+                                kotlinx.coroutines.delay(500)  // Small delay for better UX
+                                val satisfactionPrompt = ConversationHelper.getSatisfactionPrompt(
+                                    com.example.a2ui_sample.domain.model.UserIntent.ORDER_PLACED
+                                )
+                                if (satisfactionPrompt.isNotEmpty()) {
+                                    withContext(Dispatchers.Main) {
+                                        addMessage(UiMessage(
+                                            text = satisfactionPrompt,
+                                            isFromUser = false
+                                        ))
+                                    }
+                                }
+                                
+                                Log.i("A2UI_FLOW", "[CHECKOUT] ✅ Confirmation message added to chat")
+                            } else {
+                                Log.e("A2UI_FLOW", "[CHECKOUT] ❌ Failed to build A2UI payload")
+                                addMessage(UiMessage(
+                                    text = "⚠️ Order placed but confirmation card unavailable",
+                                    isFromUser = false
+                                ))
+                            }
+                        } else {
+                            Log.w("A2UI_FLOW", "[CHECKOUT] ⚠️ Cart is empty")
+                            addMessage(UiMessage(
+                                text = "⚠️ Your cart is empty. Please add items before checkout.",
+                                isFromUser = false
+                            ))
                         }
+                    } catch (e: Exception) {
+                        Log.e("A2UI_FLOW", "[CHECKOUT] ❌ Error during COD checkout", e)
+                        addMessage(UiMessage(
+                            text = "❌ Checkout failed: ${e.message}",
+                            isFromUser = false
+                        ))
                     }
                 }
             }
@@ -248,31 +332,40 @@ class RestaurantMainViewModel @Inject constructor(
                 // 2. Intent Analysis
                 _loadingState.value = ChatLoadingState(status = "🔍 Analyzing intent...")
                 
-                // 3. Offload AI processing to IO thread
+                // 3. Offload AI processing to IO thread with CONVERSATIONAL MEMORY
                 val responses = withContext(Dispatchers.IO) {
-                    adkMasterAgent?.processQuery(text, historyContext) { status ->
+                    // Get chat history from database for true conversational memory
+                    val chatHistory = chatMessageDao.getRecentMessages(limit = 10)
+                    
+                    // Use new context-aware method
+                    adkMasterAgent?.processQueryWithMemory(text, chatHistory) { status ->
                         _loadingState.value = ChatLoadingState(status = status)
                     }
                 }
 
-                responses?.forEach { response ->
+                responses?.forEachIndexed { index, response ->
+                    Log.d("A2UI_FLOW", "[STEP] Processing response item $index")
                     if (response.trim().startsWith("{") && response.contains("version")) {
                         _loadingState.value = ChatLoadingState(status = "🎨 Preparing view...")
                         
-                        // Process the message through the renderer
-                        renderer.processMessage(response)
-
-                        // Only add to chat if it's an updateComponents message (the UI part)
-                        if (response.contains("updateComponents")) {
-                            Log.d("A2UI_RESTORE", "UI JSON Found for message")
-                            addMessage(UiMessage(
-                                text = "I've updated the view for you:",
-                                isFromUser = false,
-                                isA2UI = true,
-                                a2uiPayload = response
-                            ))
+                        // Process the message through the renderer (split if multi-line JSONL)
+                        val fragments = splitA2UICommand(response)
+                        Log.d("A2UI_FLOW", "[STEP] Found ${fragments.size} JSON fragments in response $index")
+                        
+                        fragments.forEach { fragment ->
+                            renderer.processMessage(fragment)
                         }
+
+                        // Add to chat as a single A2UI message containing all fragments
+                        Log.d("A2UI_FLOW", "[STEP] Adding A2UI message bubble for response $index")
+                        addMessage(UiMessage(
+                            text = "I've updated the view for you:",
+                            isFromUser = false,
+                            isA2UI = true,
+                            a2uiPayload = response
+                        ))
                     } else {
+                        Log.d("A2UI_FLOW", "[STEP] Adding text message bubble for response $index")
                         addMessage(UiMessage(text = response, isFromUser = false))
                     }
                 }
@@ -303,12 +396,37 @@ class RestaurantMainViewModel @Inject constructor(
         }
     }
 
-    fun bookTable(numberOfPeople: Int, date: String, time: String) {
+    fun bookTable(numberOfPeople: Int, date: String, time: String, onSuccess: () -> Unit = {}) {
         viewModelScope.launch {
             try {
-                val sdf = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.US)
-                val parsedDate = sdf.parse("$date $time")
-                val startMillis = parsedDate?.time ?: System.currentTimeMillis()
+                Log.d("A2UI_FLOW", "[BOOKING] Attempting to book: $date at $time")
+                
+                val calendar = java.util.Calendar.getInstance()
+                
+                // Robust parsing for "Today, 05 Aug" etc.
+                if (date.contains("Tomorrow", ignoreCase = true)) {
+                    calendar.add(java.util.Calendar.DAY_OF_YEAR, 1)
+                } else if (date.contains("Fri", ignoreCase = true)) {
+                    while (calendar.get(java.util.Calendar.DAY_OF_WEEK) != java.util.Calendar.FRIDAY) {
+                        calendar.add(java.util.Calendar.DAY_OF_YEAR, 1)
+                    }
+                } else if (date.contains("Sat", ignoreCase = true)) {
+                    while (calendar.get(java.util.Calendar.DAY_OF_WEEK) != java.util.Calendar.SATURDAY) {
+                        calendar.add(java.util.Calendar.DAY_OF_YEAR, 1)
+                    }
+                }
+
+                // Parse time "07:00 PM"
+                val timeSdf = java.text.SimpleDateFormat("hh:mm a", java.util.Locale.US)
+                val timeDate = try { timeSdf.parse(time) } catch (e: Exception) { null }
+                if (timeDate != null) {
+                    val timeCal = java.util.Calendar.getInstance()
+                    timeCal.time = timeDate
+                    calendar.set(java.util.Calendar.HOUR_OF_DAY, timeCal.get(java.util.Calendar.HOUR_OF_DAY))
+                    calendar.set(java.util.Calendar.MINUTE, timeCal.get(java.util.Calendar.MINUTE))
+                }
+
+                val startMillis = calendar.timeInMillis
 
                 val reservation = Reservation(
                     id = ReservationId(),
@@ -323,13 +441,18 @@ class RestaurantMainViewModel @Inject constructor(
                 )
                 
                 reservationRepository.createReservation(reservation)
+                Log.i("A2UI_FLOW", "[BOOKING] Table reserved successfully: ${reservation.id.value}")
+                
+                withContext(Dispatchers.Main) {
+                    onSuccess()
+                }
                 
                 _uiMessages.add(UiMessage(
                     text = "Great! I've booked a table for $numberOfPeople on $date at $time. Your booking ID is ${reservation.id.value.take(8).uppercase()}.", 
                     isFromUser = false
                 ))
             } catch (e: Exception) {
-                android.util.Log.e("A2UI_VIEWMODEL", "Failed to book table", e)
+                Log.e("A2UI_FLOW", "[BOOKING] Failed to book table: ${e.message}", e)
                 _uiMessages.add(UiMessage(text = "⚠️ Sorry, I couldn't save your booking. Please try again.", isFromUser = false))
             }
         }

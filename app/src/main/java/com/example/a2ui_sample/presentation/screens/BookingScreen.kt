@@ -97,8 +97,9 @@ fun BookingScreen(
 
             AnimatedButton(
                 onClick = {
-                    viewModel.bookTable(guests, selectedDate, selectedTime)
-                    onBookingConfirmed()
+                    viewModel.bookTable(guests, selectedDate, selectedTime) {
+                        onBookingConfirmed()
+                    }
                 },
                 modifier = Modifier.fillMaxWidth().height(56.dp)
             ) {

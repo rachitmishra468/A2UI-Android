@@ -314,22 +314,37 @@ fun ChatBubble(message: UiMessage, renderer: A2UIRenderer) {
 
 @Composable
 fun A2UIPayloadRenderer(json: String, renderer: A2UIRenderer) {
-    // Extract surfaceId from JSON to only render what's relevant to this message
+    // Extract surfaceId from JSON (handles single object or multi-line JSONL)
     val surfaceId = remember(json) {
         try {
-            val jsonObj = com.google.gson.JsonParser.parseString(json).asJsonObject
+            val firstLine = json.trim().split("\n").firstOrNull { it.isNotBlank() } ?: json
+            val jsonObj = com.google.gson.JsonParser.parseString(firstLine).asJsonObject
+            
             when {
-                jsonObj.has("createSurface") -> {
-                    val id = jsonObj.getAsJsonObject("createSurface").get("surfaceId").asString
-                    android.util.Log.d("A2UI_RESTORE", "Surface Created: $id")
-                    id
-                }
+                jsonObj.has("createSurface") -> jsonObj.getAsJsonObject("createSurface").get("surfaceId").asString
                 jsonObj.has("updateComponents") -> jsonObj.getAsJsonObject("updateComponents").get("surfaceId").asString
                 jsonObj.has("updateDataModel") -> jsonObj.getAsJsonObject("updateDataModel").get("surfaceId").asString
-                else -> null
+                else -> {
+                    // Search all lines if not in first
+                    val allLines = json.trim().split("\n")
+                    var foundId: String? = null
+                    for (line in allLines) {
+                        try {
+                            val obj = com.google.gson.JsonParser.parseString(line).asJsonObject
+                            foundId = when {
+                                obj.has("createSurface") -> obj.getAsJsonObject("createSurface").get("surfaceId").asString
+                                obj.has("updateComponents") -> obj.getAsJsonObject("updateComponents").get("surfaceId").asString
+                                obj.has("updateDataModel") -> obj.getAsJsonObject("updateDataModel").get("surfaceId").asString
+                                else -> null
+                            }
+                            if (foundId != null) break
+                        } catch (_: Exception) {}
+                    }
+                    foundId
+                }
             }
         } catch (e: Exception) {
-            android.util.Log.e("A2UI_RESTORE", "Error parsing JSON: ${e.message}")
+            android.util.Log.e("A2UI_RESTORE", "Error parsing JSON ID: ${e.message}")
             null
         }
     }

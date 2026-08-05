@@ -339,7 +339,7 @@
     "id": 25,
     "name": "Student Combo",
     "category": "Combos",
-    "type": "VEG",
+    "type": "NONVEG",
     "price": { "amount": 199 },
     "image": "https://images.unsplash.com/photo-1525351484163-7529414344d8?q=80&w=600&h=400&fit=crop",
     "description": "1 McAloo Tikki, 1 Small Fries, 1 Small Coke.",

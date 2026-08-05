@@ -6,17 +6,21 @@ sealed class AgentResponse {
     
     data class BookingRequest(val step: String, val message: String) : AgentResponse()
     data class BookingConfirmation(val booking: TableBooking) : AgentResponse()
+    data class BookingHistory(val bookings: List<Reservation>, val message: String) : AgentResponse()
     
     data class MenuResults(val items: List<MenuItem>, val message: String) : AgentResponse()
-    data class Recommendations(val items: List<MenuItem>) : AgentResponse()
+    data class Recommendations(
+        val items: List<MenuItem>,
+        val message: String = "Here are my recommendations:"
+    ) : AgentResponse()
     
-    data class CartUpdate(val item: MenuItem, val totalCount: Int) : AgentResponse()
+    data class CartUpdate(val item: MenuItem, val totalCount: Int, val message: String = "Item added to cart!") : AgentResponse()
     data class CartView(val items: List<CartItem>, val totalAmount: Int) : AgentResponse()
     
     data class OrderConfirmation(val order: Order) : AgentResponse()
     
     // Checkout Flow
-    data class OrderSummary(val items: List<CartItem>, val subtotal: Int, val tax: Int, val total: Int) : AgentResponse()
+    data class OrderSummary(val items: List<CartItem>, val subtotal: Int, val tax: Int, val total: Int, val message: String = "Here's your order summary:") : AgentResponse()
     data class PaymentChoice(val total: Int) : AgentResponse()
     data class NavigateToPayment(val orderId: String, val amount: Int) : AgentResponse()
     data class OrderPlaced(val order: Order) : AgentResponse()

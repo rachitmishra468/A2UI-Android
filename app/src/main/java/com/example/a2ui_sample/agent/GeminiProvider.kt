@@ -3,8 +3,10 @@ package com.example.a2ui_sample.agent
 import android.util.Log
 import com.example.a2ui_sample.BuildConfig
 import com.example.a2ui_sample.domain.model.IntentResult
+import com.example.a2ui_sample.infrastructure.persistence.entity.ChatMessageEntity
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.content
+import com.google.ai.client.generativeai.type.Content
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -40,19 +42,92 @@ class GeminiProvider {
             return@withContext IntentResult(mode = "INTENT", intent = "UNKNOWN", rawQuery = query)
         }
     }
+    
+    /**
+     * Enhanced query analysis with full conversational memory using Gemini Chat API
+     */
+    suspend fun analyzeQueryWithContext(
+        query: String,
+        chatHistory: List<ChatMessageEntity>
+    ): IntentResult = withContext(Dispatchers.IO) {
+        try {
+            Log.d(TAG, "🧠 CONVERSATIONAL: Analyzing with ${chatHistory.size} messages context")
+            Log.d(TAG, "Master Agent Reasoning: $query")
+            
+            // Build conversation history for Gemini Chat API
+            val historyContent = chatHistory.takeLast(10).mapNotNull { msg ->
+                when {
+                    msg.isFromUser -> content(role = "user") { text(msg.text) }
+                    !msg.text.isBlank() -> content(role = "model") { text(msg.text) }
+                    else -> null
+                }
+            }
+            
+            // Start chat with history
+            val chat = model.startChat(history = historyContent)
+            
+            // Send current query
+            val response = chat.sendMessage(query)
+            val jsonText = response.text?.trim()?.removePrefix("```json")?.removeSuffix("```")?.trim() ?: ""
+            
+            Log.d(TAG, "Master Agent Raw JSON: $jsonText")
+            Log.d(TAG, "🧠 MEMORY: Agent has context of last ${historyContent.size} messages")
+
+            return@withContext gson.fromJson(jsonText, IntentResult::class.java).copy(rawQuery = query)
+        } catch (e: Exception) {
+            Log.e(TAG, "Reasoning Error: ${e.message}", e)
+            // Fallback to simple analysis
+            return@withContext analyzeQuery(query)
+        }
+    }
 
     companion object {
         private val MASTER_AGENT_PROMPT = """
-            You are the Restaurant Master Agent.
+            You are the Restaurant Master Agent with conversational memory.
             Your purpose is to decide whether a user request is:
             1. SIMPLE INTENT
             2. MULTI STEP TOOL WORKFLOW
 
+            CONVERSATIONAL CONTEXT RULES
+            - You remember previous messages in the conversation
+            - Handle references like "that", "it", "the first/second one", "same", "add more"
+            - When user says "add that" or "the second one", resolve from conversation history
+            - When user says "change it to X", understand what "it" refers to
+            - When user says "same order", refer to most recent order mentioned
+            
+            Examples with context:
+            Previous: Agent showed [Masala Dosa, Idli, Paneer Tikka]
+            User: "add the second one"
+            Output: {"mode": "INTENT", "intent": "ADD_TO_CART", "food_item": "Idli"}
+            
+            Previous: User booked table for 4 at 7pm
+            User: "make it 8pm"
+            Output: {"mode": "INTENT", "intent": "MODIFY_BOOKING", "time": "8pm"}
+            
+            Previous: User added Masala Dosa
+            User: "make quantity 2"
+            Output: {"mode": "INTENT", "intent": "UPDATE_CART", "food_item": "Masala Dosa", "quantity": 2}
+
             RULES
             If user request can be handled by a single intent then return ONLY JSON.
-            Example:
+            
+            IMPORTANT: Always extract entities from user request!
+            
+            Examples:
             User: show menu
             Output: {"mode": "INTENT", "intent": "SHOW_MENU"}
+            
+            User: recommend menu items under Rs 200
+            Output: {"mode": "INTENT", "intent": "SEARCH_MENU", "priceLimit": 200}
+            
+            User: show veg items under Rs 200
+            Output: {"mode": "INTENT", "intent": "SEARCH_MENU", "diet": "veg", "priceLimit": 200}
+            
+            User: show bestsellers
+            Output: {"mode": "INTENT", "intent": "SHOW_RECOMMENDATIONS"}
+            
+            User: book table for 4 people at 7pm today
+            Output: {"mode": "INTENT", "intent": "BOOK_TABLE", "peopleCount": 4, "time": "7pm", "date": "today"}
 
             If the user asks for multiple actions, return TOOL_WORKFLOW.
             Example:
@@ -64,6 +139,15 @@ class GeminiProvider {
                 {"tool": "SHOW_CART"}
               ]
             }
+            
+            User: add 2 dosa under Rs 100 each and checkout
+            Output: {
+              "mode": "TOOL_WORKFLOW",
+              "tasks": [
+                {"tool": "ADD_TO_CART", "itemName": "Dosa", "quantity": 2, "priceLimit": 100},
+                {"tool": "CHECKOUT"}
+              ]
+            }
 
             Always break compound requests into independent tasks.
             Never combine tasks. Never skip tasks.
@@ -71,14 +155,40 @@ class GeminiProvider {
 
             SUPPORTED TOOLS
             SEARCH_MENU, ADD_TO_CART, REMOVE_FROM_CART, UPDATE_CART, SHOW_CART, CLEAR_CART, CHECKOUT, 
-            BOOK_TABLE, CANCEL_BOOKING, MODIFIY_BOOKING, TRACK_ORDER, ORDER_HISTORY, SEARCH_RESTAURANTS, 
+            BOOK_TABLE, SHOW_BOOKINGS, CANCEL_BOOKING, MODIFIY_BOOKING, TRACK_ORDER, ORDER_HISTORY, CANCEL_ORDER,
             SUBMIT_FEEDBACK, SHOW_OFFERS, APPLY_COUPON, REMOVE_COUPON, REORDER_PREVIOUS, SHOW_RECOMMENDATIONS
 
-            ENTITY EXTRACTION
-            Menu Search: category, diet, priceLimit
-            Booking: date, time, peopleCount
-            Cart: itemName, quantity
-            Feedback: rating, comment
+            ENTITY EXTRACTION (CRITICAL - Always extract when present!)
+            
+            Price mentions: Extract as priceLimit (number only)
+            - "under Rs 200", "below 200", "less than Rs 200" → priceLimit: 200
+            - "Rs 50 to Rs 100" → priceLimit: 100 (use upper limit)
+            
+            Quantity mentions: Extract as quantity
+            - "2 dosa", "add two idli" → quantity: 2
+            
+            Category/Food: Extract as category or itemName
+            - "show breakfast menu" → category: "breakfast"
+            - "add masala dosa" → itemName: "Masala Dosa"
+            
+            Diet: Extract as diet
+            - "veg menu", "vegetarian" → diet: "veg"
+            - "non-veg" → diet: "non-veg"
+            
+            Booking: Extract date, time, peopleCount
+            - "book for 4 people at 7pm today" → peopleCount: 4, time: "7pm", date: "today"
+            - "tomorrow 8pm for 2" → date: "tomorrow", time: "8pm", peopleCount: 2
+            
+            Feedback: Extract rating, comment
+            - "5 star rating, food was great" → rating: 5, comment: "food was great"
+            
+            Advanced attributes: Extract when present
+            - Spice level: "spicy food" → spiceLevel: "hot"
+            - Meal type: "dinner for 4" → mealType: "dinner", peopleCount: 4
+            - Occasion: "family combo" → occasion: "family"
+            - Serving: "sharing platter" → servingStyle: "sharing"
+            - Accompaniment: "goes with naan" → accompaniment: "naan"
+            - Health: "low calorie", "healthy" → healthPreference: "healthy"
 
             Output must always be valid JSON. Never return markdown. Never return natural language. JSON only.
         """.trimIndent()

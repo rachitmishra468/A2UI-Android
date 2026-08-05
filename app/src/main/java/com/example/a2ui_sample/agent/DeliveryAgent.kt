@@ -36,36 +36,36 @@ class DeliveryAgent(
                         if (delivery != null) {
                             AgentResponse.DeliveryUpdate(delivery, order)
                         } else {
-                            AgentResponse.Message("I found your order ${order.id.value}, but delivery tracking is not available for it yet. Current status: ${order.status.name}")
+                            AgentResponse.Message("I found your order! 📦 Order ID: ${order.id.value}\nStatus: ${order.status.name}\nDelivery tracking will be available soon!")
                         }
                     } else {
-                        AgentResponse.Message("I couldn't find an order with ID $orderIdStr. Please check the ID and try again.")
+                        AgentResponse.Message("Hmm, I couldn't find order #$orderIdStr. 🤔 Could you double-check the order ID?")
                     }
                 } else {
                     val allOrders = orderRepository.getAllOrders().first()
                     if (allOrders.isNotEmpty()) {
                         val latestOrder = allOrders.first()
                         if (latestOrder.status == com.example.a2ui_sample.domain.valueobjects.OrderStatus.CANCELLED) {
-                            return AgentResponse.Message("❌ Order Cancelled\nOrder ID: ${latestOrder.id.value}")
+                            return AgentResponse.Message("❌ Your latest order was cancelled.\nOrder ID: ${latestOrder.id.value}")
                         }
 
                         val delivery = deliveryRepository.getDeliveryByOrderId(latestOrder.id)
                         if (delivery != null) {
                             AgentResponse.DeliveryUpdate(delivery, latestOrder)
                         } else {
-                            AgentResponse.Message("I found your recent order ${latestOrder.id.value}, but delivery tracking is not available for it yet. Current status: ${latestOrder.status.name}")
+                            AgentResponse.Message("I found your recent order! 📦 Order ID: ${latestOrder.id.value}\nStatus: ${latestOrder.status.name}\nTracking will be available soon!")
                         }
                     } else {
-                        AgentResponse.Message("Which order would you like to track? Please provide the Order ID.")
+                        AgentResponse.Message("You don't have any active orders right now. 📦 Would you like to order something delicious?")
                     }
                 }
             }
             com.example.a2ui_sample.domain.model.UserIntent.ORDER_HISTORY -> {
                 val history = orderRepository.getOrderHistory(CustomerId("guest"))
                 if (history.isNotEmpty()) {
-                    AgentResponse.Message("You have ${history.size} past orders. I've opened the Order History for you.")
+                    AgentResponse.Message("You have ${history.size} past orders! 📜 Let me show you your order history.")
                 } else {
-                    AgentResponse.Message("You don't have any past orders yet.")
+                    AgentResponse.Message("You don't have any past orders yet. 📦 Ready to place your first order?")
                 }
             }
             com.example.a2ui_sample.domain.model.UserIntent.ORDER_REPEAT -> {
@@ -77,9 +77,10 @@ class DeliveryAgent(
                             menuRepository.addToCart(item.menuItemId)
                         }
                     }
-                    AgentResponse.Message("I've added the items from your last order (${latestOrder.id.value}) back to your cart. You can view your cart or checkout now.")
+                    val total = menuRepository.getCartTotal()
+                    AgentResponse.Message("Great choice! 🔄 I've added all items from your last order back to your cart. Total: ₹$total. Ready to checkout?")
                 } else {
-                    AgentResponse.Message("I couldn't find any past orders to repeat.")
+                    AgentResponse.Message("I couldn't find any past orders to repeat. 🤔 Would you like to browse our menu?")
                 }
             }
             com.example.a2ui_sample.domain.model.UserIntent.ORDER_CANCEL -> {
@@ -89,15 +90,15 @@ class DeliveryAgent(
                     val order = orderRepository.getOrderById(orderId)
                     if (order != null) {
                         if (order.status == com.example.a2ui_sample.domain.valueobjects.OrderStatus.DELIVERED) {
-                            AgentResponse.Message("Sorry, order $orderIdStr has already been delivered and cannot be cancelled.")
+                            AgentResponse.Message("Sorry! 😔 Order #$orderIdStr was already delivered and can't be cancelled. Need help with something else?")
                         } else if (order.status == com.example.a2ui_sample.domain.valueobjects.OrderStatus.CANCELLED) {
-                            AgentResponse.Message("Order $orderIdStr is already cancelled.")
+                            AgentResponse.Message("This order is already cancelled. ✅ Anything else I can help with?")
                         } else {
                             orderRepository.updateOrderStatus(orderId, com.example.a2ui_sample.domain.valueobjects.OrderStatus.CANCELLED)
-                            AgentResponse.Message("I've successfully cancelled your order $orderIdStr.")
+                            AgentResponse.Message("Done! ✅ I've cancelled order #$orderIdStr. We hope to serve you again soon! 😊")
                         }
                     } else {
-                        AgentResponse.Message("I couldn't find order $orderIdStr to cancel.")
+                        AgentResponse.Message("I couldn't find order #$orderIdStr. 🤔 Could you check the order ID?")
                     }
                 } else {
                     val allOrders = orderRepository.getAllOrders().first()
@@ -106,16 +107,16 @@ class DeliveryAgent(
                         if (latestOrder.status != com.example.a2ui_sample.domain.valueobjects.OrderStatus.DELIVERED && 
                             latestOrder.status != com.example.a2ui_sample.domain.valueobjects.OrderStatus.CANCELLED) {
                             orderRepository.updateOrderStatus(latestOrder.id, com.example.a2ui_sample.domain.valueobjects.OrderStatus.CANCELLED)
-                            AgentResponse.Message("I've successfully cancelled your most recent order (${latestOrder.id.value}).")
+                            AgentResponse.Message("All done! ✅ I've cancelled your latest order (${latestOrder.id.value}). Hope to see you again soon! 😊")
                         } else {
-                            AgentResponse.Message("Your most recent order (${latestOrder.id.value}) is already ${latestOrder.status.name.lowercase()} and cannot be cancelled.")
+                            AgentResponse.Message("Your latest order (${latestOrder.id.value}) is already ${latestOrder.status.name.lowercase()} and can't be cancelled. 😔")
                         }
                     } else {
-                        AgentResponse.Message("You don't have any active orders to cancel.")
+                        AgentResponse.Message("You don't have any active orders to cancel. 📦 Everything looks good!")
                     }
                 }
             }
-            else -> AgentResponse.Message("I can help you track your active orders.")
+            else -> AgentResponse.Message("I can help you track your orders! 📦 Just ask me about any order ID.")
         }
     }
 }

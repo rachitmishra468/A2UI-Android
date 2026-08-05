@@ -17,7 +17,7 @@ import com.example.a2ui_sample.infrastructure.persistence.entity.*
         MenuItemEntity::class,
         ChatMessageEntity::class,
     ],
-    version = 4,
+    version = 5, // Incremented for conversationId field
     exportSchema = false
 )
 @TypeConverters(Converters::class)

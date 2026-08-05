@@ -23,7 +23,7 @@ class FeedbackAgent(private val repository: FeedbackRepository) {
             UserIntent.FEEDBACK_VIEW -> handleViewFeedback(intent)
             UserIntent.FEEDBACK_UPDATE -> handleUpdateFeedback(intent)
             UserIntent.FEEDBACK_METRICS -> handleViewMetrics()
-            else -> AgentResponse.Error("I'm sorry, I cannot handle this request.")
+            else -> AgentResponse.Error("I'm here to help! 😊 What would you like feedback on?")
         }
     }
 
@@ -33,11 +33,11 @@ class FeedbackAgent(private val repository: FeedbackRepository) {
         val comment = intent.entities["comment"] as? String ?: ""
         
         if (orderId == null) {
-            return AgentResponse.Message("Which order would you like to provide feedback for? Please provide an Order ID.")
+            return AgentResponse.Message("Which order would you like to rate? 🌟 Please share the Order ID!")
         }
 
         if (overallRating == 0) {
-            return AgentResponse.FeedbackForm(orderId, "Please rate your experience with order $orderId.")
+            return AgentResponse.FeedbackForm(orderId, "How was your experience with order #$orderId? ⭐ Rate from 1-5 stars!")
         }
 
         val foodRating = (intent.entities["food_rating"] as? Number)?.toInt() ?: overallRating
@@ -62,10 +62,10 @@ class FeedbackAgent(private val repository: FeedbackRepository) {
 
         if (overallRating < 3) {
             createSupportTicket(feedback)
-            return AgentResponse.FeedbackSubmitted(feedback, "I'm very sorry you had a poor experience. I've submitted your feedback and opened a support ticket for the restaurant manager to investigate immediately.")
+            return AgentResponse.FeedbackSubmitted(feedback, "😔 We're truly sorry your experience wasn't great. I've escalated your feedback to our manager who will look into this right away. We'd love to make it right!")
         }
 
-        return AgentResponse.FeedbackSubmitted(feedback, "Thank you for your valuable feedback! We're glad you enjoyed your experience.")
+        return AgentResponse.FeedbackSubmitted(feedback, "Thank you so much! 🌟 Your feedback helps us serve you better. We're thrilled you enjoyed your meal! 😊")
     }
 
     private suspend fun handleViewFeedback(intent: IntentResultWrapper): AgentResponse {
@@ -73,25 +73,25 @@ class FeedbackAgent(private val repository: FeedbackRepository) {
         val feedbacks = repository.getFeedbackByCustomer(customerId)
         
         return if (feedbacks.isNotEmpty()) {
-            AgentResponse.FeedbackHistory(feedbacks, "Here is the feedback you've submitted previously.")
+            AgentResponse.FeedbackHistory(feedbacks, "Here are all the reviews you've shared with us! 📝 Thank you!")
         } else {
-            AgentResponse.Message("You haven't submitted any feedback yet.")
+            AgentResponse.Message("You haven't shared any feedback yet. 🌟 We'd love to hear how we're doing!")
         }
     }
 
     private suspend fun handleUpdateFeedback(intent: IntentResultWrapper): AgentResponse {
         val feedbackId = intent.entities["feedback_id"] as? String
-        if (feedbackId == null) return AgentResponse.Message("Please provide the feedback ID you wish to update.")
+        if (feedbackId == null) return AgentResponse.Message("Which feedback would you like to update? 📝 Please share the feedback ID!")
         
         val existing = repository.getFeedbackById(FeedbackId(feedbackId))
-            ?: return AgentResponse.Error("Feedback not found.")
+            ?: return AgentResponse.Error("I couldn't find that feedback. 🤔 Could you check the ID?")
             
-        return AgentResponse.Message("Feedback updated successfully.")
+        return AgentResponse.Message("Feedback updated successfully! ✅ Thank you!")
     }
 
     private suspend fun handleViewMetrics(): AgentResponse {
         val metrics = repository.getFeedbackMetrics()
-        return AgentResponse.FeedbackDashboard(metrics, "Here's the summary of overall customer satisfaction.")
+        return AgentResponse.FeedbackDashboard(metrics, "Here's how we're doing overall! 📊 Your feedback makes us better!")
     }
 
     private fun detectSentiment(rating: Int, comment: String): Sentiment {

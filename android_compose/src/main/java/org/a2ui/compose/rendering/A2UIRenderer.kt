@@ -107,7 +107,7 @@ class A2UIRenderer(
     }
 
     fun processMessage(message: String): Result<Unit> {
-        android.util.Log.d("A2UI_FLOW", "7. Renderer processing message: ${message.take(100)}...")
+       // android.util.Log.d("A2UI_FLOW", "7. Renderer processing message: ${message.take(100)}...")
         return try {
             if (message.isBlank()) {
                 val error = A2UIError.ParseError("Empty message", message)

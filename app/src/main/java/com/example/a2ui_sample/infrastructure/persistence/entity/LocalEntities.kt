@@ -73,5 +73,6 @@ data class ChatMessageEntity(
     val isFromUser: Boolean,
     val timestamp: Long,
     val isA2UI: Boolean = false,
-    val a2uiPayload: String? = null
+    val a2uiPayload: String? = null,
+    val conversationId: String = "main_conversation" // For future multi-user support
 )

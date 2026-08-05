@@ -30,7 +30,7 @@ class A2UIResponseBuilder {
                 messages.add(buildMenuData(surfaceId, response.items))
             }
             is AgentResponse.Recommendations -> {
-                messages.add(buildMenuSchema(surfaceId, "Recommendations for you"))
+                messages.add(buildMenuSchema(surfaceId, response.message))
                 messages.add(buildMenuData(surfaceId, response.items))
             }
             is AgentResponse.CartUpdate -> {
@@ -42,6 +42,10 @@ class A2UIResponseBuilder {
             }
             is AgentResponse.BookingConfirmation -> {
                 messages.add(buildBookingConfirmationSchema(surfaceId, response.booking))
+            }
+            is AgentResponse.BookingHistory -> {
+                messages.add(buildBookingHistorySchema(surfaceId, response.message))
+                messages.add(buildBookingData(surfaceId, response.bookings))
             }
             is AgentResponse.DeliveryUpdate -> {
                 messages.add(buildDeliveryTrackingSchema(surfaceId, response.delivery, response.order))
@@ -526,6 +530,112 @@ class A2UIResponseBuilder {
         }
 
         comps.add(JsonObject().apply { addProperty("id", "restaurant-name"); addProperty("component", "Text"); addProperty("text", "Luxe Dining Restaurant"); addProperty("variant", "subtitle"); addProperty("padding", 8) })
+
+        update.add("components", comps)
+        root.add("updateComponents", update)
+        return gson.toJson(root)
+    }
+
+    private fun buildBookingData(surfaceId: String, bookings: List<Reservation>): String {
+        val uiBookings = bookings.map { b ->
+            val sdf = java.text.SimpleDateFormat("dd MMM, HH:mm", java.util.Locale.US)
+            mapOf(
+                "restaurantName" to b.restaurantName,
+                "status" to b.status.name,
+                "displayTime" to sdf.format(java.util.Date(b.timeSlot.startMillis)),
+                "guests" to "${b.partySize} People"
+            )
+        }
+        val root = JsonObject()
+        root.addProperty("version", "v0.10")
+        val update = JsonObject()
+        update.addProperty("surfaceId", surfaceId)
+        update.addProperty("path", "/bookings")
+        update.add("value", gson.toJsonTree(uiBookings))
+        root.add("updateDataModel", update)
+        return gson.toJson(root)
+    }
+
+    private fun buildBookingHistorySchema(surfaceId: String, title: String): String {
+        val root = JsonObject()
+        root.addProperty("version", "v0.10")
+        val update = JsonObject()
+        update.addProperty("surfaceId", surfaceId)
+        val comps = JsonArray()
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "root")
+            addProperty("component", "Column")
+            val ch = JsonArray()
+            ch.add("header")
+            ch.add("booking-list")
+            add("children", ch)
+            addProperty("align", "stretch")
+        })
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "header")
+            addProperty("component", "Text")
+            addProperty("text", title)
+            addProperty("variant", "h5")
+        })
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "booking-list")
+            addProperty("component", "List")
+            addProperty("direction", "vertical")
+            val ch = JsonObject()
+            ch.addProperty("path", "/bookings")
+            ch.addProperty("componentId", "booking-card")
+            add("children", ch)
+        })
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "booking-card")
+            addProperty("component", "Card")
+            addProperty("child", "booking-row")
+        })
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "booking-row")
+            addProperty("component", "Row")
+            val ch = JsonArray()
+            ch.add("booking-details")
+            ch.add("booking-status")
+            add("children", ch)
+            addProperty("justify", "spaceBetween")
+        })
+
+        comps.add(JsonObject().apply {
+            addProperty("id", "booking-details")
+            addProperty("component", "Column")
+            val ch = JsonArray()
+            ch.add("rest-name")
+            ch.add("booking-time")
+            add("children", ch)
+        })
+
+        comps.add(JsonObject().apply { 
+            addProperty("id", "rest-name")
+            addProperty("component", "Text")
+            val t = JsonObject(); t.addProperty("path", "restaurantName"); add("text", t)
+            addProperty("variant", "subtitle") 
+        })
+        
+        comps.add(JsonObject().apply { 
+            addProperty("id", "booking-time")
+            addProperty("component", "Text")
+            val t = JsonObject(); t.addProperty("template", "{displayTime} • {guests}"); add("text", t)
+            addProperty("variant", "caption") 
+        })
+
+        comps.add(JsonObject().apply { 
+            addProperty("id", "booking-status")
+            addProperty("component", "Text")
+            val t = JsonObject(); t.addProperty("path", "status"); add("text", t)
+            addProperty("variant", "body")
+            addProperty("color", "#4CAF50")
+        })
 
         update.add("components", comps)
         root.add("updateComponents", update)

@@ -80,6 +80,9 @@ interface ChatMessageDao {
 
     @Query("SELECT * FROM chat_messages ORDER BY timestamp ASC")
     fun getAllMessages(): Flow<List<ChatMessageEntity>>
+    
+    @Query("SELECT * FROM chat_messages ORDER BY timestamp DESC LIMIT :limit")
+    suspend fun getRecentMessages(limit: Int = 10): List<ChatMessageEntity>
 
     @Query("DELETE FROM chat_messages")
     suspend fun clearHistory()

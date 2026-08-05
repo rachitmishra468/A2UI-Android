@@ -6,6 +6,7 @@ import com.example.a2ui_sample.domain.model.Reservation
 import com.example.a2ui_sample.domain.model.TableBooking
 import com.example.a2ui_sample.domain.repository.ReservationRepository
 import com.example.a2ui_sample.domain.valueobjects.*
+import kotlinx.coroutines.flow.first
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -24,9 +25,42 @@ class BookingAgent(private val repository: ReservationRepository) {
                 
                 if (people != null && dateStr != null && timeStr != null) {
                     try {
-                        val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US)
-                        val date = sdf.parse("$dateStr $timeStr")
-                        val startMillis = date?.time ?: System.currentTimeMillis()
+                        val calendar = java.util.Calendar.getInstance()
+                        
+                        // Robust parsing for AI extracted dates
+                        if (dateStr.contains("tomorrow", ignoreCase = true)) {
+                            calendar.add(java.util.Calendar.DAY_OF_YEAR, 1)
+                        } else if (!dateStr.contains("today", ignoreCase = true)) {
+                            // Try parsing YYYY-MM-DD
+                            val dateSdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+                            val d = try { dateSdf.parse(dateStr) } catch (e: Exception) { null }
+                            if (d != null) {
+                                val dCal = java.util.Calendar.getInstance()
+                                dCal.time = d
+                                calendar.set(java.util.Calendar.YEAR, dCal.get(java.util.Calendar.YEAR))
+                                calendar.set(java.util.Calendar.MONTH, dCal.get(java.util.Calendar.MONTH))
+                                calendar.set(java.util.Calendar.DAY_OF_MONTH, dCal.get(java.util.Calendar.DAY_OF_MONTH))
+                            }
+                        }
+
+                        // Try various time formats
+                        val timeFormats = listOf("HH:mm", "hh:mm a", "h a")
+                        var timeDate: java.util.Date? = null
+                        for (fmt in timeFormats) {
+                            try {
+                                timeDate = SimpleDateFormat(fmt, Locale.US).parse(timeStr)
+                                if (timeDate != null) break
+                            } catch (e: Exception) { continue }
+                        }
+
+                        if (timeDate != null) {
+                            val tCal = java.util.Calendar.getInstance()
+                            tCal.time = timeDate
+                            calendar.set(java.util.Calendar.HOUR_OF_DAY, tCal.get(java.util.Calendar.HOUR_OF_DAY))
+                            calendar.set(java.util.Calendar.MINUTE, tCal.get(java.util.Calendar.MINUTE))
+                        }
+
+                        val startMillis = calendar.timeInMillis
                         
                         val reservation = Reservation(
                             id = ReservationId(),
@@ -57,22 +91,56 @@ class BookingAgent(private val repository: ReservationRepository) {
                         AgentResponse.Error("⚠️ Unable to save booking. Please try again.")
                     }
                 } else {
-                    AgentResponse.Message("I need a bit more info to book a table. For how many people, and at what date and time?")
+                    AgentResponse.Message("I'd love to help you book a table! 🍽️ For how many people, and at what date and time?")
                 }
             }
             com.example.a2ui_sample.domain.model.UserIntent.BOOKING_LIST -> {
-                AgentResponse.Message("I've opened your booking history for you.")
+                val bookings = repository.getUpcomingReservations(CustomerId("guest")).first()
+                if (bookings.isNotEmpty()) {
+                    AgentResponse.BookingHistory(bookings, "Here are your upcoming table reservations: 📅")
+                } else {
+                    AgentResponse.Message("You don't have any upcoming reservations yet. 📅 Would you like to book a table?")
+                }
             }
             com.example.a2ui_sample.domain.model.UserIntent.BOOKING_CANCEL -> {
                 val bookingId = intent.entities["booking_id"] as? String
+                val target = intent.entities["target"] as? String
+                val dateStr = intent.entities["date"] as? String
+
                 if (bookingId != null) {
                     repository.cancelReservation(ReservationId(bookingId))
-                    AgentResponse.Message("Your booking $bookingId has been successfully cancelled.")
+                    AgentResponse.Message("Done! ✅ Your booking has been cancelled. We hope to see you again soon! 😊")
+                } else if (target == "all" || dateStr != null) {
+                    val allBookings = repository.getUpcomingReservations(CustomerId("guest")).first()
+                    val toCancel = if (dateStr != null) {
+                        allBookings.filter { b ->
+                            val bDate = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(java.util.Date(b.timeSlot.startMillis))
+                            // Simple logic to match "today", "tomorrow" or exact date
+                            val targetDate = when {
+                                dateStr.contains("tomorrow", true) -> {
+                                    val cal = java.util.Calendar.getInstance(); cal.add(java.util.Calendar.DAY_OF_YEAR, 1)
+                                    SimpleDateFormat("yyyy-MM-dd", Locale.US).format(cal.time)
+                                }
+                                dateStr.contains("today", true) -> {
+                                    SimpleDateFormat("yyyy-MM-dd", Locale.US).format(java.util.Date())
+                                }
+                                else -> dateStr
+                            }
+                            bDate == targetDate
+                        }
+                    } else allBookings
+
+                    if (toCancel.isNotEmpty()) {
+                        toCancel.forEach { repository.cancelReservation(it.id) }
+                        AgentResponse.Message("Done! ✅ I've cancelled ${toCancel.size} bookings for you. 😊")
+                    } else {
+                        AgentResponse.Message("I couldn't find any bookings to cancel for ${dateStr ?: "your request"}. 🤔")
+                    }
                 } else {
-                    AgentResponse.Message("Please provide the Booking ID you wish to cancel.")
+                    AgentResponse.Message("Could you tell me which booking you'd like to cancel? 🤔")
                 }
             }
-            else -> AgentResponse.Message("I can help you with table reservations.")
+            else -> AgentResponse.Message("I can help you book a table! 🍽️ Just tell me when and for how many people.")
         }
     }
 }
