@@ -1069,6 +1069,8 @@ class A2UIResponseBuilder {
             ch.add("success-icon")
             ch.add("title")
             ch.add("order-id")
+            ch.add("items-label")
+            ch.add("items-list")
             ch.add("amount")
             ch.add("action-row")
             add("children", ch)
@@ -1079,7 +1081,27 @@ class A2UIResponseBuilder {
         comps.add(JsonObject().apply { addProperty("id", "success-icon"); addProperty("component", "Icon"); addProperty("name", "check_circle"); addProperty("size", 48); addProperty("tint", "#4CAF50") })
         comps.add(JsonObject().apply { addProperty("id", "title"); addProperty("component", "Text"); addProperty("text", "Order Placed Successfully!"); addProperty("variant", "h5") })
         comps.add(JsonObject().apply { addProperty("id", "order-id"); addProperty("component", "Text"); addProperty("text", "Order ID: ${order.id.value}"); addProperty("variant", "body") })
-        comps.add(JsonObject().apply { addProperty("id", "amount"); addProperty("component", "Text"); addProperty("text", "Amount Paid: ₹${order.totalAmount.amount}"); addProperty("variant", "subtitle") })
+        
+        comps.add(JsonObject().apply { addProperty("id", "items-label"); addProperty("component", "Text"); addProperty("text", "Items Ordered:"); addProperty("variant", "caption"); addProperty("padding", 8) })
+        
+        comps.add(JsonObject().apply {
+            addProperty("id", "items-list")
+            addProperty("component", "Column")
+            val ch = JsonArray()
+            order.items.forEachIndexed { index, item ->
+                val itemId = "item-$index"
+                comps.add(JsonObject().apply {
+                    addProperty("id", itemId)
+                    addProperty("component", "Text")
+                    addProperty("text", "${item.quantity}x ${item.menuItemName}")
+                    addProperty("variant", "body")
+                })
+                ch.add(itemId)
+            }
+            add("children", ch)
+        })
+
+        comps.add(JsonObject().apply { addProperty("id", "amount"); addProperty("component", "Text"); addProperty("text", "Total Amount: ₹${order.totalAmount.amount}"); addProperty("variant", "subtitle"); addProperty("padding", 12) })
 
         comps.add(JsonObject().apply {
             addProperty("id", "action-row")

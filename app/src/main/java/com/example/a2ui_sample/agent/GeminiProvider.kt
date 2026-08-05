@@ -30,7 +30,7 @@ class GeminiProvider {
         SUPPORTED INTENTS:
         - MENU_SEARCH: User wants to find food, browse categories, or search by name/type.
         - MENU_RECOMMEND: User is hungry, wants suggestions, or asks for popular items.
-        - CART_VIEW: User wants to see their bag/cart/order summary.
+        - CART_VIEW: User wants to see their bag/cart (e.g., "show my cart", "what's in my bag").
         - CART_ADD: User wants to add items to cart.
         - CART_REMOVE: User wants to remove items from cart.
         - CART_UPDATE: User wants to change quantity of items.
@@ -46,7 +46,7 @@ class GeminiProvider {
         - ORDER_CANCEL: User wants to cancel an existing order.
         - OFFER_LIST: User wants to see discounts, coupons, or deals.
         - OFFER_APPLY: User wants to apply a specific code or discount.
-        - CHECKOUT: User is ready to pay and place the order.
+        - CHECKOUT: User wants to pay, finish ordering, or proceed to checkout (e.g., "checkout", "pay now", "proceed").
         - FEEDBACK_SUBMIT: User wants to rate their order, leave a review, or provide feedback.
         - FEEDBACK_VIEW: User wants to see their past reviews or feedback history.
         - FEEDBACK_UPDATE: User wants to modify their existing feedback.
@@ -60,12 +60,13 @@ class GeminiProvider {
         - category: dish category
         - quantity: number of items
         - price_limit: budget constraint
-        - people_count: guests for booking
+        - people_count: number of people or guests
         - date: booking date
         - time: booking time
         - order_id: the unique ID of an order (e.g., "ORD-1234")
         - feedback_id: the unique ID of a feedback entry
         - rating: numeric rating (1-5)
+        - payment_method: "cod" or "online"
         - food_rating: rating for food quality (1-5)
         - delivery_rating: rating for delivery speed/experience (1-5)
         - packaging_rating: rating for packaging quality (1-5)
