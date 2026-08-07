@@ -138,14 +138,14 @@ class A2UIResponseBuilder {
             addProperty("id", "header")
             addProperty("component", "Text")
             addProperty("text", title)
-            addProperty("variant", "h2")
+            addProperty("variant", "title")
         })
 
         // List
         comps.add(JsonObject().apply {
             addProperty("id", "menu-list")
             addProperty("component", "List")
-            addProperty("direction", "vertical")
+            addProperty("direction", "horizontal")
             val ch = JsonObject()
             ch.addProperty("path", "/items")
             ch.addProperty("componentId", "menu-card")
@@ -178,6 +178,7 @@ class A2UIResponseBuilder {
             val url = JsonObject()
             url.addProperty("path", "image")
             add("url", url)
+            addProperty("variant", "smallFeature")
             addProperty("variant", "smallFeature")
         })
 

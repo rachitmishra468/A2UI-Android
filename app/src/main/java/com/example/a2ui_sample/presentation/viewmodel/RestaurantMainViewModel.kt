@@ -26,16 +26,37 @@ import javax.inject.Inject
 import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.a2ui_sample.domain.usecases.AddToCartSimpleUseCase
+import com.example.a2ui_sample.domain.usecases.BookTableActionUseCase
+import com.example.a2ui_sample.domain.usecases.CheckoutOrderUseCase
+import com.example.a2ui_sample.domain.usecases.GetFeaturedItemsUseCase
+import com.example.a2ui_sample.domain.usecases.GetOrderConfirmationUiUseCase
+import com.example.a2ui_sample.domain.usecases.GetPremiumFeedbackUiUseCase
+import com.example.a2ui_sample.domain.usecases.ProcessRestaurantQueryUseCase
+import com.example.a2ui_sample.domain.usecases.RemoveFromCartUseCase
+import com.example.a2ui_sample.domain.usecases.SubmitFeedbackUseCase
+import com.example.a2ui_sample.domain.usecases.UpdateAgentOrderMemoryUseCase
+import com.example.a2ui_sample.domain.usecases.UpdateCartQuantityUseCase
 
 @HiltViewModel
 class RestaurantMainViewModel @Inject constructor(
-    private val repository: MenuRepository,
-    private val feedbackRepository: FeedbackRepository,
+    private val menuRepository: MenuRepository,
     private val orderRepository: OrderRepository,
     private val reservationRepository: ReservationRepository,
-    private val deliveryRepository: DeliveryRepository,
+    private val feedbackRepository: FeedbackRepository,
     private val chatMessageDao: ChatMessageDao,
-    private val memoryManager: com.example.a2ui_sample.agent.ConversationMemoryManager
+    private val memoryManager: com.example.a2ui_sample.agent.ConversationMemoryManager,
+    private val processRestaurantQueryUseCase: ProcessRestaurantQueryUseCase,
+    private val getOrderConfirmationUiUseCase: GetOrderConfirmationUiUseCase,
+    private val getPremiumFeedbackUiUseCase: GetPremiumFeedbackUiUseCase,
+    private val updateAgentOrderMemoryUseCase: UpdateAgentOrderMemoryUseCase,
+    private val getFeaturedItemsUseCase: GetFeaturedItemsUseCase,
+    private val addToCartSimpleUseCase: AddToCartSimpleUseCase,
+    private val updateCartQuantityUseCase: UpdateCartQuantityUseCase,
+    private val removeFromCartUseCase: RemoveFromCartUseCase,
+    private val bookTableActionUseCase: BookTableActionUseCase,
+    private val checkoutOrderUseCase: CheckoutOrderUseCase,
+    private val submitFeedbackUseCase: SubmitFeedbackUseCase
 ) : ViewModel(), A2UILogger, ActionHandler {
 
     private val _featuredItems = MutableStateFlow<List<MenuItem>>(emptyList())
@@ -47,7 +68,7 @@ class RestaurantMainViewModel @Inject constructor(
     private val _loadingState = MutableStateFlow<ChatLoadingState?>(null)
     val loadingState: StateFlow<ChatLoadingState?> = _loadingState.asStateFlow()
 
-    val cartItems: StateFlow<List<CartItem>> = repository.getCartFlow()
+    val cartItems: StateFlow<List<CartItem>> = menuRepository.getCartFlow()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _navigationEvents = MutableSharedFlow<NavigationEvent>()
@@ -58,30 +79,12 @@ class RestaurantMainViewModel @Inject constructor(
     val allFeedback: Flow<List<Feedback>> = feedbackRepository.getFeedbackFlow()
 
     val renderer = A2UIRenderer(this)
-    private var adkMasterAgent: ADKRestaurantMasterAgent? = null
 
     init {
         Log.d("A2UI_INIT", "RestaurantMainViewModel init started")
         loadFeaturedItems()
         loadChatHistory()
         renderer.setActionHandler(this)
-        
-        try {
-            Log.d("A2UI_INIT", "Creating ADKRestaurantMasterAgent")
-            adkMasterAgent = ADKRestaurantMasterAgent(
-                repository, 
-                feedbackRepository, 
-                reservationRepository,
-                orderRepository,
-                deliveryRepository
-            )
-            // Manual injection for adkMasterAgent
-            adkMasterAgent?.memoryManager = memoryManager
-
-            Log.d("A2UI_INIT", "ADKRestaurantMasterAgent created successfully")
-        } catch (e: Exception) {
-            Log.e("A2UI_INIT", "CRITICAL: ADKRestaurantMasterAgent initialization failed: ${e.message}", e)
-        }
     }
 
     private fun loadChatHistory() {
@@ -113,7 +116,7 @@ class RestaurantMainViewModel @Inject constructor(
                         
                         if (orders.size >= 3) {
                             // User has order history - show proactive suggestions
-                            val profileBuilder = UserProfileBuilder(repository)
+                            val profileBuilder = UserProfileBuilder(menuRepository)
                             val profile = profileBuilder.buildProfile(orders, bookings, feedback)
                             val suggestions = profileBuilder.generateProactiveSuggestions(profile)
                             
@@ -197,7 +200,7 @@ class RestaurantMainViewModel @Inject constructor(
             }
             "checkout" -> {
                 viewModelScope.launch {
-                    val order = checkout()
+                    val order = checkoutOrderUseCase()
                     if (order != null) {
                         addMessage(UiMessage(
                             text = "Order placed successfully! ID: ${order.id.value}",
@@ -231,14 +234,14 @@ class RestaurantMainViewModel @Inject constructor(
                         // 1. Show immediate text status
                         addMessage(UiMessage(text = "Placing your order...", isFromUser = false))
                         
-                        val order = checkout()
+                        val order = checkoutOrderUseCase()
                         if (order != null) {
                             Log.i("A2UI_FLOW", "[CHECKOUT] ✅ Order Created (COD): ${order.id.value}")
                             
                             // Persist to memory
-                            adkMasterAgent?.updateOrderMemory(order)
+                            updateAgentOrderMemoryUseCase.execute(order)
 
-                            val payload = adkMasterAgent?.buildOrderPlacedResponse(order)
+                            val payload = getOrderConfirmationUiUseCase.execute(order)
                             if (payload != null) {
                                 // 2. Process renderer on Main thread
                                 withContext(Dispatchers.Main) {
@@ -259,7 +262,7 @@ class RestaurantMainViewModel @Inject constructor(
                                 
                                 // 4. Add PREMIUM satisfaction feedback card with delay
                                 kotlinx.coroutines.delay(1500)
-                                val satisfactionPayload = adkMasterAgent?.buildPremiumFeedbackResponse(order)
+                                val satisfactionPayload = getPremiumFeedbackUiUseCase.execute(order)
                                 if (satisfactionPayload != null) {
                                     withContext(Dispatchers.Main) {
                                         // Save to memory
@@ -290,8 +293,6 @@ class RestaurantMainViewModel @Inject constructor(
                 val rating = (context["rating"] as? Number)?.toInt() ?: 0
                 val label = context["label"] as? String ?: ""
                 Log.d("A2UI_FLOW", "[FEEDBACK] User selected rating: $rating ($label)")
-                // We could update the UI here to show selection, 
-                // but for now we'll just log it until "submit" is clicked
             }
             "submit_premium_feedback" -> {
                 val orderId = context["orderId"] as? String ?: "unknown"
@@ -302,7 +303,7 @@ class RestaurantMainViewModel @Inject constructor(
                 Log.i("A2UI_FLOW", "[FEEDBACK] Submitting for Order $orderId: Comment='$comment'")
                 
                 viewModelScope.launch {
-                    // Save to repository
+                    // Save to repository via UseCase
                     val ratingValue = com.example.a2ui_sample.domain.valueobjects.Rating(5)
                     val feedback = Feedback(
                         id = com.example.a2ui_sample.domain.valueobjects.FeedbackId(java.util.UUID.randomUUID().toString()),
@@ -315,7 +316,7 @@ class RestaurantMainViewModel @Inject constructor(
                         comment = comment,
                         sentiment = Sentiment.POSITIVE
                     )
-                    feedbackRepository.submitFeedback(feedback)
+                    submitFeedbackUseCase(feedback)
                     
                     // Update memory with last feedback
                     memoryManager.save(com.example.a2ui_sample.agent.ConversationMemoryManager.LAST_DISCUSSED_TOPIC, "feedback_submitted")
@@ -351,26 +352,19 @@ class RestaurantMainViewModel @Inject constructor(
         }
     }
 
-    override fun openUrl(url: String) {
-        // Handle URL if needed
-    }
-
-    override fun showToast(message: String) {
-        // Handle toast if needed
-    }
-
+    override fun openUrl(url: String) {}
+    override fun showToast(message: String) {}
     override fun log(level: A2UILogLevel, message: String) {
         Log.d("A2UI_FLOW", "[$level] $message")
     }
 
     private fun loadFeaturedItems() {
         viewModelScope.launch {
-            val items = repository.getMenuItems().filter { it.isBestSeller }
-            _featuredItems.value = items
+            _featuredItems.value = getFeaturedItemsUseCase()
         }
     }
 
-    fun getAllMenuItems(): List<MenuItem> = repository.getMenuItems()
+    fun getAllMenuItems(): List<MenuItem> = menuRepository.getMenuItems()
 
     fun sendMessage(text: String) {
         val startTime = System.currentTimeMillis()
@@ -385,16 +379,8 @@ class RestaurantMainViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
-                // Prepare conversation history
-                val historyContext = _uiMessages.takeLast(10).map { 
-                    if (it.isFromUser) "User: ${it.text}" else "Assistant: ${it.text}"
-                }
-
-                // 2. Intent Analysis
-                _loadingState.value = ChatLoadingState(status = "🔍 Analyzing intent...")
-                
                 // 3. Offload AI processing to IO thread with CONVERSATIONAL MEMORY
-                val responses: List<String>? = withContext(Dispatchers.IO) {
+                val responses: List<String> = withContext(Dispatchers.IO) {
                     // Get chat history from database for true conversational memory
                     val chatHistory = chatMessageDao.getRecentMessages(limit = 10)
                     
@@ -406,13 +392,13 @@ class RestaurantMainViewModel @Inject constructor(
                         "\n[END SYSTEM CONTEXT]\n"
                     } else ""
 
-                    // Use new context-aware method
-                    adkMasterAgent?.processQueryWithMemory(text + contextFormatted, chatHistory) { status: String ->
+                    // Use UseCase
+                    processRestaurantQueryUseCase(text + contextFormatted, chatHistory) { status: String ->
                         _loadingState.value = ChatLoadingState(status = status)
                     }
                 }
 
-                responses?.forEachIndexed { index: Int, response: String ->
+                responses.forEachIndexed { index, response ->
                     Log.d("A2UI_FLOW", "[STEP] Processing response item $index. Payload hash: ${response.hashCode()}")
                     if (response.trim().startsWith("{") && response.contains("version")) {
                         _loadingState.value = ChatLoadingState(status = "🎨 Preparing view...")
@@ -453,20 +439,24 @@ class RestaurantMainViewModel @Inject constructor(
 
     fun addToCart(menuItemId: Int) {
         viewModelScope.launch {
-            repository.addToCart(menuItemId)
+            addToCartSimpleUseCase(menuItemId)
         }
     }
 
     fun updateCartQuantity(menuItemId: Int, quantity: Int) {
         viewModelScope.launch {
-            repository.updateCartQuantity(menuItemId, quantity)
+            updateCartQuantityUseCase(menuItemId, quantity)
         }
     }
 
     fun removeFromCart(menuItemId: Int) {
         viewModelScope.launch {
-            repository.removeFromCart(menuItemId)
+            removeFromCartUseCase(menuItemId)
         }
+    }
+
+    suspend fun checkout(): Order? {
+        return checkoutOrderUseCase()
     }
 
     fun bookTable(numberOfPeople: Int, date: String, time: String, onSuccess: () -> Unit = {}) {
@@ -476,7 +466,7 @@ class RestaurantMainViewModel @Inject constructor(
                 
                 val calendar = java.util.Calendar.getInstance()
                 
-                // Robust parsing for "Today, 05 Aug" etc.
+                // Robust parsing
                 if (date.contains("Tomorrow", ignoreCase = true)) {
                     calendar.add(java.util.Calendar.DAY_OF_YEAR, 1)
                 } else if (date.contains("Fri", ignoreCase = true)) {
@@ -489,7 +479,6 @@ class RestaurantMainViewModel @Inject constructor(
                     }
                 }
 
-                // Parse time "07:00 PM"
                 val timeSdf = java.text.SimpleDateFormat("hh:mm a", java.util.Locale.US)
                 val timeDate = try { timeSdf.parse(time) } catch (e: Exception) { null }
                 if (timeDate != null) {
@@ -513,52 +502,22 @@ class RestaurantMainViewModel @Inject constructor(
                     source = BookingSource.APP
                 )
                 
-                reservationRepository.createReservation(reservation)
+                bookTableActionUseCase(reservation)
                 Log.i("A2UI_FLOW", "[BOOKING] Table reserved successfully: ${reservation.id.value}")
                 
                 withContext(Dispatchers.Main) {
                     onSuccess()
                 }
                 
-                _uiMessages.add(UiMessage(
+                addMessage(UiMessage(
                     text = "Great! I've booked a table for $numberOfPeople on $date at $time. Your booking ID is ${reservation.id.value.take(8).uppercase()}.", 
                     isFromUser = false
                 ))
             } catch (e: Exception) {
                 Log.e("A2UI_FLOW", "[BOOKING] Failed to book table: ${e.message}", e)
-                _uiMessages.add(UiMessage(text = "⚠️ Sorry, I couldn't save your booking. Please try again.", isFromUser = false))
+                addMessage(UiMessage(text = "⚠️ Sorry, I couldn't save your booking. Please try again.", isFromUser = false))
             }
         }
-    }
-
-    suspend fun checkout(): Order? {
-        val cartItems = repository.getCart()
-        if (cartItems.isEmpty()) return null
-
-        val subtotal = repository.getCartTotal()
-        val tax = (subtotal * 0.05).toInt()
-        val total = subtotal + tax
-
-        val orderItems = cartItems.map {
-            OrderItem(
-                menuItemId = it.menuItem.id,
-                menuItemName = it.menuItem.name,
-                quantity = it.quantity,
-                unitPrice = it.menuItem.price
-            )
-        }
-
-        val order = Order(
-            id = OrderId("ORD-${System.currentTimeMillis() % 10000}"),
-            items = orderItems,
-            subtotal = Price(subtotal),
-            tax = Price(tax),
-            totalAmount = Price(total)
-        )
-
-        orderRepository.placeOrder(order)
-        repository.clearCart()
-        return order
     }
 
     fun clearChat() {
@@ -571,7 +530,6 @@ class RestaurantMainViewModel @Inject constructor(
 
     private fun splitA2UICommand(json: String): List<String> {
         return try {
-            // Handle multiple JSON objects separated by newlines (JSONL format)
             val lines = json.trim().split("\n").filter { it.isNotBlank() }
             if (lines.size > 1) {
                 val allResults = mutableListOf<String>()
@@ -599,6 +557,7 @@ class RestaurantMainViewModel @Inject constructor(
         }
     }
 }
+
 
 sealed class NavigationEvent {
     object NavigateToCart : NavigationEvent()

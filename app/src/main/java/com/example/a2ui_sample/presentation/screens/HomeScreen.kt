@@ -132,6 +132,7 @@ fun QuickActionsSection(
             .padding(16.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+
         ActionCard("Menu", Icons.Default.RestaurantMenu, Color(0xFFFFE0B2), onMenu, Modifier.weight(1f))
         ActionCard("Booking", Icons.Default.Event, Color(0xFFC8E6C9), onReservations, Modifier.weight(1f))
         ActionCard("Cart", Icons.Default.ShoppingCart, Color(0xFFD1E3FF), onCart, Modifier.weight(1f), cartCount)

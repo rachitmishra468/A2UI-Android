@@ -20,12 +20,14 @@ private const val TAG = "A2UI_FLOW"
  * 2. Executes each task using Specialist Agents.
  * 3. Builds A2UI responses.
  */
-class ADKRestaurantMasterAgent(
+@Singleton
+class ADKRestaurantMasterAgent @Inject constructor(
     private val menuRepository: MenuRepository,
     private val feedbackRepository: FeedbackRepository,
     private val reservationRepository: ReservationRepository,
     private val orderRepository: OrderRepository,
-    private val deliveryRepository: DeliveryRepository
+    private val deliveryRepository: DeliveryRepository,
+    private val memoryManager: ConversationMemoryManager
 ) {
     private val responseBuilder by lazy { A2UIResponseBuilder() }
     private val geminiProvider by lazy { GeminiProvider() }
@@ -35,8 +37,6 @@ class ADKRestaurantMasterAgent(
     private val bookingAgent by lazy { BookingAgent(reservationRepository) }
     private val deliveryAgent by lazy { DeliveryAgent(orderRepository, deliveryRepository, menuRepository) }
     private val feedbackAgent by lazy { FeedbackAgent(feedbackRepository) }
-
-    @Inject lateinit var memoryManager: ConversationMemoryManager
 
     /**
      * Process query with conversational memory (NEW - AI-POWERED)
@@ -52,6 +52,8 @@ class ADKRestaurantMasterAgent(
         onProgress("🤖 Understanding with context...")
 
         val decision = geminiProvider.analyzeQueryWithContext(userMessage, chatHistory)
+
+
         Log.d(TAG, "Decision: ${decision.mode} (Tasks: ${decision.tasks?.size ?: 0})")
 
         val finalMessages = mutableListOf<String>()
@@ -96,12 +98,6 @@ class ADKRestaurantMasterAgent(
     }
 
     private suspend fun updateMemory(intent: IntentResult, response: AgentResponse) {
-        // Safe guard for memoryManager initialization
-        if (!::memoryManager.isInitialized) {
-             Log.w(TAG, "MemoryManager not initialized, skipping memory update")
-             return
-        }
-
         memoryManager.save(ConversationMemoryManager.LAST_INTENT, intent.intent)
         
         when (response) {
@@ -325,11 +321,9 @@ class ADKRestaurantMasterAgent(
     }
 
     suspend fun updateOrderMemory(order: Order) {
-        if (::memoryManager.isInitialized) {
-            memoryManager.save(ConversationMemoryManager.LAST_ORDER_ID, order.id.value)
-            memoryManager.save(ConversationMemoryManager.LAST_ORDER, order)
-            memoryManager.save(ConversationMemoryManager.LAST_DISCUSSED_TOPIC, "order_placed")
-        }
+        memoryManager.save(ConversationMemoryManager.LAST_ORDER_ID, order.id.value)
+        memoryManager.save(ConversationMemoryManager.LAST_ORDER, order)
+        memoryManager.save(ConversationMemoryManager.LAST_DISCUSSED_TOPIC, "order_placed")
     }
 
     fun buildSatisfactionResponse(intent: UserIntent): String? {

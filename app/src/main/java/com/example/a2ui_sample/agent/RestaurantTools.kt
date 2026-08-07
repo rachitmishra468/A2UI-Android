@@ -2,6 +2,7 @@ package com.example.a2ui_sample.agent
 
 import android.util.Log
 import com.example.a2ui_sample.domain.model.AgentResponse
+import com.example.a2ui_sample.domain.model.Feedback
 import com.example.a2ui_sample.domain.repository.*
 import com.example.a2ui_sample.domain.valueobjects.*
 import com.google.adk.kt.annotations.Tool
@@ -206,6 +207,32 @@ class RestaurantTools(
             "✅ Table booked for $peopleCount on $date at $time."
         } catch (e: Exception) {
             "❌ Booking failed."
+        }
+    }
+
+    @Tool(
+        name = "submit_feedback",
+        description = "Submit feedback or a rating for an order."
+    )
+    fun submitFeedback(rating: Int, comment: String, orderId: String? = null): String = runBlocking {
+        try {
+            val r = Rating(rating.coerceIn(1, 5))
+            val feedback = Feedback(
+                id = FeedbackId(),
+                orderId = OrderId(orderId ?: "unknown"),
+                customerId = CustomerId("guest"),
+                foodRating = r,
+                deliveryRating = r,
+                packagingRating = r,
+                overallRating = r,
+                comment = comment,
+                createdAt = System.currentTimeMillis()
+            )
+            feedbackRepository.submitFeedback(feedback)
+            lastResponse = AgentResponse.Message("Thank you for your feedback! ⭐ $rating/5")
+            "✅ Feedback submitted successfully."
+        } catch (e: Exception) {
+            "❌ Failed to submit feedback: ${e.message}"
         }
     }
 }
