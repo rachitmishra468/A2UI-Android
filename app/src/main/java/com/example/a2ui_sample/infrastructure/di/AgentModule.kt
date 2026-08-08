@@ -2,6 +2,7 @@ package com.example.a2ui_sample.infrastructure.di
 
 import com.example.a2ui_sample.agent.ADKRestaurantMasterAgent
 import com.example.a2ui_sample.agent.ConversationMemoryManager
+import com.example.a2ui_sample.agent.RestaurantAgent
 import com.example.a2ui_sample.domain.repository.*
 import dagger.Module
 import dagger.Provides
@@ -21,7 +22,8 @@ object AgentModule {
         reservationRepository: ReservationRepository,
         orderRepository: OrderRepository,
         deliveryRepository: DeliveryRepository,
-        memoryManager: ConversationMemoryManager
+        memoryManager: ConversationMemoryManager,
+        restaurantAgent: RestaurantAgent
     ): ADKRestaurantMasterAgent {
         return ADKRestaurantMasterAgent(
             menuRepository,
@@ -29,7 +31,8 @@ object AgentModule {
             reservationRepository,
             orderRepository,
             deliveryRepository,
-            memoryManager
+            memoryManager,
+            restaurantAgent
         )
     }
 }

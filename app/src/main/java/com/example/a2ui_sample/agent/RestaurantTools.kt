@@ -9,12 +9,15 @@ import com.google.adk.kt.annotations.Tool
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import java.util.*
+import javax.inject.Inject
+import javax.inject.Singleton
 
 /**
  * RestaurantTools
  * Specialist tools for the ADK-based Restaurant Agent.
  */
-class RestaurantTools(
+@Singleton
+class RestaurantTools @Inject constructor(
     private val repository: MenuRepository,
     private val reservationRepository: ReservationRepository,
     private val orderRepository: OrderRepository,

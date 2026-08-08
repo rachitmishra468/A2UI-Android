@@ -27,10 +27,10 @@ class ADKRestaurantMasterAgent @Inject constructor(
     private val reservationRepository: ReservationRepository,
     private val orderRepository: OrderRepository,
     private val deliveryRepository: DeliveryRepository,
-    private val memoryManager: ConversationMemoryManager
+    private val memoryManager: ConversationMemoryManager,
+    private val restaurantAgent: RestaurantAgent
 ) {
     private val responseBuilder by lazy { A2UIResponseBuilder() }
-    private val geminiProvider by lazy { GeminiProvider() }
     
     private val menuAgent by lazy { MenuAgent(menuRepository) }
     private val cartAgent by lazy { CartAgent(menuRepository) }
@@ -51,7 +51,7 @@ class ADKRestaurantMasterAgent @Inject constructor(
         Log.d(TAG, "🧠 Context: ${chatHistory.size} messages in history")
         onProgress("🤖 Understanding with context...")
 
-        val decision = geminiProvider.analyzeQueryWithContext(userMessage, chatHistory)
+        val decision = restaurantAgent.analyzeQueryWithContext(userMessage, chatHistory)
 
 
         Log.d(TAG, "Decision: ${decision.mode} (Tasks: ${decision.tasks?.size ?: 0})")
@@ -127,7 +127,7 @@ class ADKRestaurantMasterAgent @Inject constructor(
         Log.d(TAG, "Master Agent START: '$userMessage'")
         onProgress("🤖 Thinking...")
 
-        val decision = geminiProvider.analyzeQuery(userMessage, history)
+        val decision = restaurantAgent.analyzeIntent(userMessage)
         Log.d(TAG, "Decision: ${decision.mode} (Tasks: ${decision.tasks?.size ?: 0})")
 
         val finalMessages = mutableListOf<String>()
