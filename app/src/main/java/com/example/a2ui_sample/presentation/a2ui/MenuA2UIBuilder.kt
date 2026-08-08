@@ -92,7 +92,7 @@ class MenuA2UIBuilder {
         comp.addProperty("id", "food-price")
         comp.addProperty("component", "Text")
         val text = JsonObject()
-        text.addProperty("path", "price/amount") // Maps to Price.amount
+        text.addProperty("template", "₹{price/amount}") // Maps to Price.amount with Rupee symbol
         comp.add("text", text)
         comp.addProperty("variant", "h4")
         return comp

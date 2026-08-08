@@ -20,7 +20,8 @@ data class MenuItem(
     val calories: Int = 0,
     val tags: List<String> = emptyList(),
     val isBestSeller: Boolean = false,
-    val isAvailable: Boolean = true
+    val isAvailable: Boolean = true,
+    val cartQuantity: Int = 0
 ) {
     val imageUrl: String get() = image
 }

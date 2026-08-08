@@ -175,7 +175,7 @@ fun ActionCard(
         )
         if (badgeCount > 0) {
             Badge(
-                modifier = Modifier.align(Alignment.TopEnd).padding(4.dp),
+                modifier = Modifier.align(Alignment.TopEnd).padding(16.dp),
                 containerColor = Color.Red,
                 contentColor = Color.White
             ) {
