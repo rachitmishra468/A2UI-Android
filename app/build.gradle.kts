@@ -55,7 +55,7 @@ android {
 }
 
 ksp {
-    arg("room.generateKotlin", "false")
+    arg("room.generateKotlin", "true")
 }
 
 dependencies {

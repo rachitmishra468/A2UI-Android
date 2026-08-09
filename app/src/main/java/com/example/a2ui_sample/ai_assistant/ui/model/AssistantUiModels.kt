@@ -1,0 +1,20 @@
+package com.example.a2ui_sample.ai_assistant.ui.model
+
+import com.example.a2ui_sample.domain.model.MenuItem
+
+sealed class AssistantUiState {
+    data class TextResponse(val text: String) : AssistantUiState()
+    data class MenuSearch(val items: List<MenuItem>, val query: String? = null) : AssistantUiState()
+    data class Recommendations(val items: List<MenuItem>) : AssistantUiState()
+    data class MenuDetails(val item: MenuItem) : AssistantUiState()
+    data class CartUpdate(val item: MenuItem, val quantity: Int, val message: String) : AssistantUiState()
+    data class Error(val message: String) : AssistantUiState()
+    object Loading : AssistantUiState()
+}
+
+data class AssistantChatMessage(
+    val id: String = java.util.UUID.randomUUID().toString(),
+    val content: AssistantUiState,
+    val isFromUser: Boolean,
+    val timestamp: Long = System.currentTimeMillis()
+)

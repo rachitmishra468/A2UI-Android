@@ -7,6 +7,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import com.example.a2ui_sample.presentation.screens.*
+import com.example.a2ui_sample.ai_assistant.ui.AssistantChatScreen
 
 /**
  * AppNavigation
@@ -20,9 +21,15 @@ fun AppNavigation() {
         composable("home") {
             HomeScreen(
                 onNavigateToChat = { navController.navigate("chat") },
+                onNavigateToAssistant = { navController.navigate("ai_assistant") },
                 onNavigateToMenu = { navController.navigate("menu") },
                 onNavigateToReservations = { navController.navigate("reservation") },
                 onNavigateToCart = { navController.navigate("cart") }
+            )
+        }
+        composable("ai_assistant") {
+            AssistantChatScreen(
+                onBack = { navController.popBackStack() }
             )
         }
         composable("chat") {

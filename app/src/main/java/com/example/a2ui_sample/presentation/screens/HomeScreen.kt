@@ -30,6 +30,7 @@ import org.a2ui.compose.animation.AnimatedText
 @Composable
 fun HomeScreen(
     onNavigateToChat: () -> Unit,
+    onNavigateToAssistant: () -> Unit,
     onNavigateToMenu: () -> Unit,
     onNavigateToReservations: () -> Unit,
     onNavigateToCart: () -> Unit,
@@ -60,7 +61,7 @@ fun HomeScreen(
             HeroBanner()
 
             // 2. Quick Actions (Compose)
-            QuickActionsSection(onNavigateToMenu, onNavigateToReservations, onNavigateToCart, cartCount)
+            QuickActionsSection(onNavigateToMenu, onNavigateToReservations, onNavigateToCart, onNavigateToAssistant, cartCount)
 
             // 3. Featured Items (A2UI)
             Column(modifier = Modifier.padding(16.dp)) {
@@ -124,18 +125,25 @@ fun QuickActionsSection(
     onMenu: () -> Unit,
     onReservations: () -> Unit,
     onCart: () -> Unit,
+    onAssistant: () -> Unit,
     cartCount: Int
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-
-        ActionCard("Menu", Icons.Default.RestaurantMenu, Color(0xFFFFE0B2), onMenu, Modifier.weight(1f))
-        ActionCard("Booking", Icons.Default.Event, Color(0xFFC8E6C9), onReservations, Modifier.weight(1f))
-        ActionCard("Cart", Icons.Default.ShoppingCart, Color(0xFFD1E3FF), onCart, Modifier.weight(1f), cartCount)
+    Column(modifier = Modifier.padding(16.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            ActionCard("Menu", Icons.Default.RestaurantMenu, Color(0xFFFFE0B2), onMenu, Modifier.weight(1f))
+            ActionCard("Booking", Icons.Default.Event, Color(0xFFC8E6C9), onReservations, Modifier.weight(1f))
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            ActionCard("Cart", Icons.Default.ShoppingCart, Color(0xFFD1E3FF), onCart, Modifier.weight(1f), cartCount)
+            ActionCard("AI Menu", Icons.Default.AutoAwesome, Color(0xFFE1BEE7), onAssistant, Modifier.weight(1f))
+        }
     }
 }
 

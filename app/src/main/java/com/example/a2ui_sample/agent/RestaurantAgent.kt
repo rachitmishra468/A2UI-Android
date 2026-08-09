@@ -65,35 +65,7 @@ class RestaurantAgent @Inject constructor(
         tools = restaurantTools.generatedTools()
     )
 
-    suspend fun processQuery(query: String): List<String> {
-        Log.d("A2UI_FLOW", "RestaurantAgent processing query: '$query'")
 
-        val context = InvocationContext(
-            session = session,
-            agent = adkAgent,
-            userContent = Content.fromText(Role.USER, query)
-        )
-
-        var finalResponse: AgentResponse = AgentResponse.Message("I'm sorry, I couldn't process that.")
-
-        try {
-            adkAgent.runAsync(context).collect { event ->
-                Log.d("A2UI_FLOW", "ADK Event: $event")
-            }
-
-            // ADK tools update the lastResponse in restaurantTools
-            restaurantTools.lastResponse?.let {
-                finalResponse = it
-                restaurantTools.lastResponse = null
-            }
-        } catch (e: Exception) {
-            Log.e("A2UI_FLOW", "ADK Error: ${e.message}", e)
-            finalResponse = AgentResponse.Error("ADK Error: ${e.message}")
-        }
-
-        val uniqueId = "surf_${System.currentTimeMillis()}"
-        return responseBuilder.buildWithId(finalResponse, uniqueId)
-    }
 
     /**
      * Analyze the query to identify intent and extract entities.
@@ -151,13 +123,6 @@ class RestaurantAgent @Inject constructor(
                 }
             }
             tempSession.events.addAll(historyEvents)
-
-            // In ADK, we use InvocationContext to wrap session and agent
-            val context = InvocationContext(
-                session = tempSession,
-                agent = adkAgent,
-                userContent = Content.fromText(Role.USER, query)
-            )
 
             // However, we want the IntentResult JSON, not the tool execution.
             // So we manually build the LlmRequest with history from the session events.
