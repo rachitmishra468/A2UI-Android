@@ -63,8 +63,15 @@ class ADKRestaurantMasterAgent @Inject constructor(
             val response = executeSingleIntent(decision)
             
             val uniqueId = "surf_${System.currentTimeMillis()}_0"
+            val fragments = responseBuilder.buildWithId(response, uniqueId)
+            
+            Log.d(TAG, "📦 INTENT Fragments: ${fragments.size} items")
+            fragments.forEachIndexed { fIndex, fragment ->
+                Log.d(TAG, "   [Fragment $fIndex]: $fragment")
+            }
+
             // Join fragments with newlines so they are treated as one logical UI update
-            val payload = responseBuilder.buildWithId(response, uniqueId).joinToString("\n")
+            val payload = fragments.joinToString("\n")
             finalMessages.add(payload)
             Log.d(TAG, "A2UI_FLOW: Added INTENT payload to finalMessages")
             
@@ -84,8 +91,15 @@ class ADKRestaurantMasterAgent @Inject constructor(
                 val taskDuration = System.currentTimeMillis() - taskStart
                 
                 val uniqueId = "surf_${System.currentTimeMillis()}_$index"
+                val fragments = responseBuilder.buildWithId(response, uniqueId)
+                
+                Log.d(TAG, "📦 TASK ${index + 1} Fragments: ${fragments.size} items")
+                fragments.forEachIndexed { fIndex, fragment ->
+                    Log.d(TAG, "   [Fragment $fIndex]: $fragment")
+                }
+
                 // Join fragments with newlines per task
-                val payload = responseBuilder.buildWithId(response, uniqueId).joinToString("\n")
+                val payload = fragments.joinToString("\n")
                 finalMessages.add(payload)
                 
                 Log.d(TAG, "✅ TASK ${index + 1} complete (${taskDuration}ms)")

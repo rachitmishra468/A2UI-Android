@@ -24,7 +24,17 @@ class CartAgent(private val repository: MenuRepository) {
                 val quantity = (intent.entities["quantity"] as? Number)?.toInt() ?: 1
                 
                 if (itemName != null) {
-                    val menuItem = repository.getMenuItems().find { it.name.contains(itemName, ignoreCase = true) }
+                    val searchKeywords = itemName.split(" ").filter { it.length > 2 }
+                    val menuItem = repository.getMenuItems().find { item ->
+                        // Check exact match first
+                        if (item.name.contains(itemName, ignoreCase = true)) return@find true
+                        
+                        // Check if all significant keywords from the search term match the item name
+                        if (searchKeywords.isNotEmpty()) {
+                            searchKeywords.all { kw -> item.name.contains(kw, ignoreCase = true) }
+                        } else false
+                    }
+
                     if (menuItem != null) {
                         repository.addToCart(menuItem.id)
                         // If quantity > 1, update it since addToCart usually adds 1
