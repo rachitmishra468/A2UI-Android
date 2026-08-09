@@ -13,7 +13,11 @@ data class IntentResult(
     @SerializedName("category") val category: String? = null,
     @SerializedName("diet") val diet: String? = null,
     @SerializedName("priceLimit") val priceLimit: Int? = null,
+    @SerializedName("quantity") val quantity: Int? = null,
     @SerializedName("peopleCount") val peopleCount: Int? = null,
+    @SerializedName("occasion") val occasion: String? = null,
+    @SerializedName("rating") val rating: Int? = null,
+    @SerializedName("comment") val comment: String? = null,
     @SerializedName("target") val target: String? = null,
     @SerializedName("date") val date: String? = null,
     @SerializedName("time") val time: String? = null,
@@ -33,6 +37,7 @@ data class MasterAgentTask(
     @SerializedName("date") val date: String? = null,
     @SerializedName("time") val time: String? = null,
     @SerializedName("peopleCount") val peopleCount: Int? = null,
+    @SerializedName("occasion") val occasion: String? = null,
     @SerializedName("rating") val rating: Int? = null,
     @SerializedName("comment") val comment: String? = null
 )

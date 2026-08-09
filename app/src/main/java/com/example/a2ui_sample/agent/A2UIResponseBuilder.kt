@@ -138,7 +138,7 @@ class A2UIResponseBuilder {
             addProperty("id", "header")
             addProperty("component", "Text")
             addProperty("text", title)
-            addProperty("variant", "title")
+            addProperty("variant", "subtitle")
         })
 
         // List
@@ -1460,7 +1460,7 @@ class A2UIResponseBuilder {
             addProperty("id", "root")
             addProperty("component", "Text")
             addProperty("text", message)
-            addProperty("variant", "subtitle")
+            addProperty("variant", "caption")
         })
 
         update.add("components", comps)

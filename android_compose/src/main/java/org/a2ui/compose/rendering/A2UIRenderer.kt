@@ -210,20 +210,20 @@ class A2UIRenderer(
     }
 
     private fun handleCreateSurface(createSurface: CreateSurface) {
-        logger.log(A2UILogLevel.INFO, "Creating surface: ${createSurface.surfaceId}")
+       // logger.log(A2UILogLevel.INFO, "Creating surface: ${createSurface.surfaceId}")
         if (surfaces.size >= MAX_SURFACES) {
-            logger.log(A2UILogLevel.WARN, "Surface limit reached: ${surfaces.size}")
+           // logger.log(A2UILogLevel.WARN, "Surface limit reached: ${surfaces.size}")
             throw IllegalStateException("Maximum surface count ($MAX_SURFACES) exceeded")
         }
         val surfaceId = createSurface.surfaceId
         // ✅ 校验 surfaceId 格式
         if (!A2UIProtocol.isValidId(surfaceId)) {
-            logger.log(A2UILogLevel.WARN, "Invalid surfaceId format: $surfaceId")
+          //  logger.log(A2UILogLevel.WARN, "Invalid surfaceId format: $surfaceId")
             throw IllegalArgumentException("Invalid surfaceId format: $surfaceId")
         }
         // ✅ 重复创建 warn
         if (surfaces.containsKey(surfaceId)) {
-            logger.log(A2UILogLevel.WARN, "Surface already exists, overwriting: $surfaceId")
+         //   logger.log(A2UILogLevel.WARN, "Surface already exists, overwriting: $surfaceId")
         }
         dataModelProcessor.createSurface(surfaceId)
         surfaces[surfaceId] = SurfaceContext(

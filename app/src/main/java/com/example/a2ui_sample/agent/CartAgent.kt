@@ -77,6 +77,7 @@ class CartAgent(private val repository: MenuRepository) {
             }
             com.example.a2ui_sample.domain.model.UserIntent.CART_REMOVE -> {
                 val itemName = intent.entities["food_item"] as? String
+                val quantity = (intent.entities["quantity"] as? Number)?.toInt() ?: -1
                 val cart = repository.getCart()
                 
                 if (cart.isEmpty()) {
@@ -86,9 +87,15 @@ class CartAgent(private val repository: MenuRepository) {
                 if (itemName != null && !itemName.contains("this item", ignoreCase = true)) {
                     val cartItem = cart.find { it.menuItem.name.contains(itemName, ignoreCase = true) }
                     if (cartItem != null) {
-                        repository.removeFromCart(cartItem.menuItem.id)
-                        val newTotal = repository.getCartTotal()
-                        AgentResponse.Message("Done! ✅ I've removed ${cartItem.menuItem.name} from your cart. Your new total is ₹$newTotal.")
+                        if (quantity > 0 && quantity < cartItem.quantity) {
+                            repository.updateCartQuantity(cartItem.menuItem.id, cartItem.quantity - quantity)
+                            val newTotal = repository.getCartTotal()
+                            AgentResponse.Message("Done! ✅ I've removed $quantity ${cartItem.menuItem.name} from your cart. Your new total is ₹$newTotal.")
+                        } else {
+                            repository.removeFromCart(cartItem.menuItem.id)
+                            val newTotal = repository.getCartTotal()
+                            AgentResponse.Message("Done! ✅ I've removed ${cartItem.menuItem.name} from your cart. Your new total is ₹$newTotal.")
+                        }
                     } else {
                         AgentResponse.Message("I couldn't find '$itemName' in your cart. 🤔 Would you like to see what's in there?")
                     }

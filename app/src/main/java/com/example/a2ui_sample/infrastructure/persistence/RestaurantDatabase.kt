@@ -18,7 +18,7 @@ import com.example.a2ui_sample.infrastructure.persistence.entity.*
         ChatMessageEntity::class,
         ConversationMemoryEntity::class,
     ],
-    version = 6, // Incremented for ConversationMemoryEntity
+    version = 7, // Incremented version to fix Room schema mismatch
     exportSchema = false
 )
 @TypeConverters(Converters::class)

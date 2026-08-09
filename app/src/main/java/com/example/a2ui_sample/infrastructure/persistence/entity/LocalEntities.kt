@@ -79,7 +79,7 @@ data class ChatMessageEntity(
 
 @Entity(tableName = "conversation_memory")
 data class ConversationMemoryEntity(
-    @PrimaryKey val key: String,
+    @PrimaryKey val memoryKey: String,
     val value: String,
     val timestamp: Long = System.currentTimeMillis()
 )

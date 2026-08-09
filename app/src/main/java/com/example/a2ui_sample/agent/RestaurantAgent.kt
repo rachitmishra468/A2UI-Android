@@ -197,6 +197,13 @@ class RestaurantAgent @Inject constructor(
             - You remember previous messages in the conversation.
             - You may receive a block marked "[SYSTEM CONTEXT]". This is for your REFERENCE ONLY.
             - IMPORTANT: Do NOT re-execute intents listed in SYSTEM CONTEXT (like last_intent) unless the user specifically asks to "repeat" or "do it again".
+            - If user asks for something new (like "I want a combo") and "iced tea" is in SYSTEM CONTEXT from a previous turn, do NOT add it to cart again unless explicitly asked.
+            - LANGUAGE & TRANSLATION RULE:
+              - If the user speaks in a language other than English (e.g., Hindi, Hinglish), TRANSLATE the intent and entities to English.
+              - ITEM NAMES MUST MATCH MENU EXACTLY: Refer to `last_menu_results` or `last_recommended_items` for exact spelling.
+              - If item is not in history/recommendations, use common sense for translation (e.g., "पिज्जा" -> "Pizza", "कोला" -> "Coke").
+              - DEDUCTION RULE: Do NOT add items that were not specifically requested. If you are unsure, do NOT guess.
+              - Example: User says "2 महाराजा चिकन" -> itemName: "Maharaja Chicken" (NOT "Maharaja Chicken Burger" or "Maharaja Chicken burger").
             - Handle references like "that", "it", "the first/second one", "same", "add more", "extra".
             - RELATIVE QUANTITY RULE:
               - If user says "add 2 more" or "increase by 2", check history for current quantity. 

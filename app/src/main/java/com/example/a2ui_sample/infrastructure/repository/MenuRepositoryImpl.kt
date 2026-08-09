@@ -38,9 +38,23 @@ class MenuRepositoryImpl @Inject constructor(
     override fun getMenuItems(): List<MenuItem> = menuItemsCache
 
     override fun searchMenu(category: String?, type: String?, maxPrice: Int?): List<MenuItem> {
+        val keywords = category?.split(" ")?.filter { it.isNotBlank() } ?: emptyList()
+        val searchType = when (type?.lowercase()) {
+            "non-veg", "nonveg", "non veg" -> "NONVEG"
+            "veg", "vegetarian" -> "VEG"
+            "beverage", "drinks" -> "BEVERAGE"
+            else -> type
+        }
+
         return menuItemsCache.filter { item ->
-            val matchesCategory = category == null || item.category.contains(category, ignoreCase = true) || item.name.contains(category, ignoreCase = true)
-            val matchesType = type == null || item.type.name.equals(type, ignoreCase = true)
+            val matchesCategory = if (keywords.isEmpty()) true else {
+                keywords.all { kw ->
+                    item.category.contains(kw, ignoreCase = true) ||
+                    item.name.contains(kw, ignoreCase = true) ||
+                    item.tags.any { it.contains(kw, ignoreCase = true) }
+                }
+            }
+            val matchesType = searchType == null || item.type.name.equals(searchType, ignoreCase = true)
             val matchesPrice = maxPrice == null || item.price.amount <= maxPrice
             matchesCategory && matchesType && matchesPrice
         }

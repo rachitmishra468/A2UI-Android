@@ -55,6 +55,6 @@ class ConversationMemoryManager @Inject constructor(
     }
     
     suspend fun getAllContext(): Map<String, String> {
-        return memoryDao.getAllMemory().associate { it.key to it.value }
+        return memoryDao.getAllMemory().associate { it.memoryKey to it.value }
     }
 }

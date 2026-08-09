@@ -82,7 +82,7 @@ interface ChatMessageDao {
     fun getAllMessages(): Flow<List<ChatMessageEntity>>
     
     @Query("SELECT * FROM chat_messages ORDER BY timestamp DESC LIMIT :limit")
-    suspend fun getRecentMessages(limit: Int = 10): List<ChatMessageEntity>
+    suspend fun getRecentMessages(limit: Int): List<ChatMessageEntity>
 
     @Query("DELETE FROM chat_messages")
     suspend fun clearHistory()
@@ -93,13 +93,13 @@ interface ConversationMemoryDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMemory(memory: ConversationMemoryEntity)
 
-    @Query("SELECT * FROM conversation_memory WHERE `key` = :key")
+    @Query("SELECT * FROM conversation_memory WHERE memoryKey = :key")
     suspend fun getMemory(key: String): ConversationMemoryEntity?
 
     @Query("SELECT * FROM conversation_memory")
     suspend fun getAllMemory(): List<ConversationMemoryEntity>
 
-    @Query("DELETE FROM conversation_memory WHERE `key` = :key")
+    @Query("DELETE FROM conversation_memory WHERE memoryKey = :key")
     suspend fun deleteMemory(key: String)
 
     @Query("DELETE FROM conversation_memory")

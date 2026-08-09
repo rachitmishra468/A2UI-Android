@@ -166,13 +166,17 @@ class ADKRestaurantMasterAgent @Inject constructor(
         intentResult.itemName?.let { entities["food_item"] = it }
         intentResult.category?.let { entities["category"] = it }
         intentResult.diet?.let { entities["diet"] = it }
+        intentResult.occasion?.let { entities["category"] = (entities["category"] as? String ?: "") + " " + it }
         intentResult.priceLimit?.let { entities["price_limit"] = it }
+        intentResult.quantity?.let { entities["quantity"] = it }
         
         // Add Booking Entities
         intentResult.peopleCount?.let { entities["people_count"] = it }
         intentResult.date?.let { entities["date"] = it }
         intentResult.time?.let { entities["time"] = it }
         intentResult.target?.let { entities["target"] = it }
+        intentResult.rating?.let { entities["rating"] = it }
+        intentResult.comment?.let { entities["comment"] = it }
         
         Log.d(TAG, "🎯 INTENT: ${intentResult.intent} → ${mappedIntent.name}")
         Log.d(TAG, "📦 ENTITIES: ${entities.entries.joinToString { "${it.key}=${it.value}" }}")
@@ -195,6 +199,7 @@ class ADKRestaurantMasterAgent @Inject constructor(
             task.itemName?.let { entities["category"] = it }
             task.category?.let { entities["category"] = it }
             task.diet?.let { entities["diet"] = it }
+            task.occasion?.let { entities["category"] = (entities["category"] as? String ?: "") + " " + it }
             task.priceLimit?.let { entities["price_limit"] = it }
         } else {
             task.itemName?.let { entities["food_item"] = it }

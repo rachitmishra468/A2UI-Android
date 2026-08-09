@@ -164,7 +164,7 @@
     "rating": 4.7,
     "reviewCount": 15000,
     "calories": 140,
-    "tags": ["Cold", "Classic"],
+    "tags": ["Cold", "Classic", "Cola"],
     "isBestSeller": true
   },
   {
@@ -295,30 +295,30 @@
   },
   {
     "id": 22,
-    "name": "Family Meal",
+    "name": "Non-Veg Family Feast",
     "category": "Combos",
     "type": "NONVEG",
-    "price": { "amount": 999 },
+    "price": { "amount": 1299 },
     "image": "https://images.unsplash.com/photo-1606787366850-de6330128bfc?q=80&w=600&h=400&fit=crop",
-    "description": "2 Big Macs, 2 McAloo Tikki, 2 Large Fries, 4 Cokes.",
+    "description": "2 Maharaja Chicken, 2 McSpicy Chicken, 2 Large Fries, 4 Cold Drinks.",
     "rating": 4.9,
-    "reviewCount": 1500,
-    "calories": 2400,
-    "tags": ["Combo", "Family"],
+    "reviewCount": 1800,
+    "calories": 2800,
+    "tags": ["Combo", "Family", "Non-Veg", "Cold Drinks"],
     "isBestSeller": true
   },
   {
     "id": 23,
-    "name": "Burger Combo",
+    "name": "Veg Family Feast",
     "category": "Combos",
     "type": "VEG",
-    "price": { "amount": 349 },
-    "image": "https://images.unsplash.com/photo-1525351484163-7529414344d8?q=80&w=600&h=400&fit=crop",
-    "description": "1 Burger, 1 Medium Fries, 1 Medium Coke.",
-    "rating": 4.7,
-    "reviewCount": 3200,
-    "calories": 850,
-    "tags": ["Combo", "Value"],
+    "price": { "amount": 999 },
+    "image": "https://images.unsplash.com/photo-1606787366850-de6330128bfc?q=80&w=600&h=400&fit=crop",
+    "description": "2 Maharaja Veg, 2 McSpicy Paneer, 2 Large Fries, 4 Cold Drinks.",
+    "rating": 4.8,
+    "reviewCount": 1200,
+    "calories": 2200,
+    "tags": ["Combo", "Family", "Veg", "Cold Drinks"],
     "isBestSeller": true
   },
   {
@@ -348,5 +348,19 @@
     "calories": 540,
     "tags": ["Combo", "Student"],
     "isBestSeller": true
+  },
+  {
+    "id": 26,
+    "name": "McPizza",
+    "category": "Sides",
+    "type": "VEG",
+    "price": { "amount": 249 },
+    "image": "https://images.unsplash.com/photo-1513104890138-7c749659a591?q=80&w=600&h=400&fit=crop",
+    "description": "Personal sized cheesy pizza with olives and capsicum.",
+    "rating": 4.7,
+    "reviewCount": 1200,
+    "calories": 450,
+    "tags": ["New", "Cheese", "Pizza"],
+    "isBestSeller": false
   }
 ]
