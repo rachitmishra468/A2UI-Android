@@ -24,32 +24,20 @@ class OrderAgent @Inject constructor(
 
     val adkAgent = LlmAgent(
         name = "OrderAssistant",
+        description = "Handles order tracking, order history retrieval, and status updates for previous and active orders.",
         model = geminiModel,
-        instruction = Instruction.invoke(ORDER_PROMPT),
         tools = orderTools.generatedTools(),
-        maxSteps = 1 // Prevent loops
+        instruction = Instruction.invoke(ORDER_PROMPT),
+        maxSteps = 2
     )
-
-    fun executeCommand(command: String, session: Session): Flow<Event> {
-        session.events.add(Event(author = Role.USER, content = Content.fromText(Role.USER, "[COMMAND] $command")))
-        return adkAgent.runAsync(InvocationContext(agent = adkAgent, session = session))
-    }
 
     companion object {
         private const val ORDER_PROMPT = """
             You are the Order Specialist. Track and retrieve order information.
             
             RULES (must follow exactly):
-            1) ALWAYS call track_order(orderId=null) to track the latest order.
-            2) ALWAYS call get_order_history() to see past orders.
-            3) Extract orderId if mentioned, otherwise pass null for "latest".
-
-            Examples:
-             User: track my order
-             Tool: track_order(orderId=null)
-
-             User: show my past order history
-             Tool: get_order_history()
+            1) ALWAYS call a tool to retrieve order data.
+            2) Once the tool returns results, explain the status or list the history clearly to the user.
         """
     }
 }

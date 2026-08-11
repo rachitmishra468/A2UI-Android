@@ -24,29 +24,22 @@ class FeedbackAgent @Inject constructor(
 
     val adkAgent = LlmAgent(
         name = "FeedbackAssistant",
+        description = "Handles all customer feedback, ratings, reviews, complaints, and suggestions regarding food or service.",
         model = geminiModel,
-        instruction = Instruction.invoke(FEEDBACK_PROMPT),
         tools = feedbackTools.generatedTools(),
-        maxSteps = 1 // Prevent loops
+        instruction = Instruction.invoke(FEEDBACK_PROMPT),
+        maxSteps = 2
     )
 
-    fun executeCommand(command: String, session: Session): Flow<Event> {
-        session.events.add(Event(author = Role.USER, content = Content.fromText(Role.USER, "[COMMAND] $command")))
-        return adkAgent.runAsync(InvocationContext(agent = adkAgent, session = session))
-    }
+
 
     companion object {
         private const val FEEDBACK_PROMPT = """
             You are the Feedback Specialist. 
             
             RULES (must follow exactly):
-            1) ALWAYS call submit_feedback(rating=<num>, comment="<text>", orderId=null).
-            2) Extract the star rating (1-5) and the user's comment precisely.
-            3) If the user doesn't provide a rating, ask for one while calling the tool with the comment.
-
-            Example:
-             User: food was great, 5 stars!
-             Tool: submit_feedback(rating=5, comment="food was great")
+            1) ALWAYS call the feedback tool to record ratings or comments.
+            2) After recording, thank the user for their contribution.
         """
     }
 }

@@ -78,6 +78,7 @@ class RestaurantMainViewModel @Inject constructor(
     val allBookings: Flow<List<Reservation>> = reservationRepository.getUpcomingReservations(CustomerId("guest"))
     val allFeedback: Flow<List<Feedback>> = feedbackRepository.getFeedbackFlow()
 
+    private val conversationId = "main_conversation"
     val renderer = A2UIRenderer(this)
 
     init {
@@ -90,7 +91,7 @@ class RestaurantMainViewModel @Inject constructor(
     private fun loadChatHistory() {
         viewModelScope.launch {
             Log.d("A2UI_RESTORE", "History Loading Started")
-            val history = chatMessageDao.getAllMessages().first()
+            val history = chatMessageDao.getMessagesByConversation(conversationId).first()
             if (history.isEmpty()) {
                 // Show proactive welcome with time-based greeting
                 val greeting = ConversationHelper.getGreeting()
@@ -171,7 +172,8 @@ class RestaurantMainViewModel @Inject constructor(
                 isFromUser = message.isFromUser,
                 timestamp = message.timestamp,
                 isA2UI = message.isA2UI,
-                a2uiPayload = message.a2uiPayload
+                a2uiPayload = message.a2uiPayload,
+                conversationId = conversationId
             ))
         }
     }
@@ -382,7 +384,7 @@ class RestaurantMainViewModel @Inject constructor(
                 // 3. Offload AI processing to IO thread with CONVERSATIONAL MEMORY
                 val responses: List<String> = withContext(Dispatchers.IO) {
                     // Get chat history from database for true conversational memory
-                    val chatHistory = chatMessageDao.getRecentMessages(limit = 10)
+                    val chatHistory = chatMessageDao.getRecentMessagesByConversation(conversationId, limit = 10)
                     
                     // Add local persistent memory context
                     val persistentContext = memoryManager.getAllContext()
@@ -523,7 +525,7 @@ class RestaurantMainViewModel @Inject constructor(
     fun clearChat() {
         _uiMessages.clear()
         viewModelScope.launch(Dispatchers.IO) {
-            chatMessageDao.clearHistory()
+            chatMessageDao.clearHistoryByConversation(conversationId)
         }
         addMessage(UiMessage(text = "Chat cleared. How can I help you now?", isFromUser = false))
     }

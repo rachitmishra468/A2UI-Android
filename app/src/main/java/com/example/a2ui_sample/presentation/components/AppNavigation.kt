@@ -29,7 +29,8 @@ fun AppNavigation() {
         }
         composable("ai_assistant") {
             AssistantChatScreen(
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onNavigateToCart = { navController.navigate("cart") }
             )
         }
         composable("chat") {

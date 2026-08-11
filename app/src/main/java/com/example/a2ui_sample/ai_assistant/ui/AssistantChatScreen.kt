@@ -12,7 +12,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -31,11 +33,13 @@ import com.example.a2ui_sample.ai_assistant.viewmodel.AssistantViewModel
 @Composable
 fun AssistantChatScreen(
     onBack: () -> Unit,
+    onNavigateToCart: () -> Unit,
     viewModel: AssistantViewModel = hiltViewModel()
 ) {
     val messages = viewModel.messages
     val listState = rememberLazyListState()
     var textState by remember { mutableStateOf("") }
+    val totalCartQuantity = viewModel.cartItems.sumOf { it.quantity }
 
     val voiceLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -63,10 +67,30 @@ fun AssistantChatScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
+                actions = {
+                    IconButton(onClick = { viewModel.clearHistory() }) {
+                        Icon(Icons.Default.Delete, contentDescription = "Clear Chat")
+                    }
+                    Box(modifier = Modifier.padding(end = 8.dp)) {
+                        IconButton(onClick = onNavigateToCart) {
+                            Icon(Icons.Default.ShoppingCart, contentDescription = "Cart")
+                        }
+                        if (totalCartQuantity > 0) {
+                            Badge(
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(top = 4.dp, end = 4.dp)
+                            ) {
+                                Text(totalCartQuantity.toString())
+                            }
+                        }
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
+                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
+                    actionIconContentColor = MaterialTheme.colorScheme.onPrimary
                 )
             )
         }
@@ -75,6 +99,7 @@ fun AssistantChatScreen(
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
+                .imePadding()
         ) {
             LazyColumn(
                 state = listState,
@@ -85,7 +110,7 @@ fun AssistantChatScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(messages) { message ->
-                    AssistantMessageBubble(message)
+                    AssistantMessageBubble(message, viewModel)
                 }
                 
                 if (viewModel.isTyping) {
@@ -149,9 +174,7 @@ fun AssistantChatScreen(
 }
 
 @Composable
-fun AssistantMessageBubble(message: AssistantChatMessage) {
-    val alignment = if (message.isFromUser) Alignment.CenterEnd else Alignment.CenterStart
-    
+fun AssistantMessageBubble(message: AssistantChatMessage, viewModel: AssistantViewModel) {
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = if (message.isFromUser) Alignment.End else Alignment.Start
@@ -161,13 +184,13 @@ fun AssistantMessageBubble(message: AssistantChatMessage) {
                 TextBubble(text = content.text, isFromUser = message.isFromUser)
             }
             is AssistantUiState.MenuSearch -> {
-                MenuHorizontalList(items = content.items)
+                MenuHorizontalList(items = content.items, viewModel = viewModel)
             }
             is AssistantUiState.Recommendations -> {
-                MenuHorizontalList(items = content.items)
+                MenuHorizontalList(items = content.items, viewModel = viewModel)
             }
             is AssistantUiState.MenuDetails -> {
-                MenuDetailCard(item = content.item)
+                MenuDetailCard(item = content.item, viewModel = viewModel)
             }
             is AssistantUiState.CartUpdate -> {
                 CartUpdateCard(item = content.item, quantity = content.quantity, message = content.message)

@@ -24,33 +24,21 @@ class BookingAgent @Inject constructor(
 
     val adkAgent = LlmAgent(
         name = "BookingAssistant",
+        description = "Handles table reservations, including creating new bookings, modifying existing ones, canceling reservations, and listing current bookings.",
         model = geminiModel,
-        instruction = Instruction.invoke(BOOKING_PROMPT),
         tools = bookingTools.generatedTools(),
-        maxSteps = 1 // Prevent loops
+        instruction = Instruction.invoke(BOOKING_PROMPT),
+        maxSteps = 2
     )
-
-    fun executeCommand(command: String, session: Session): Flow<Event> {
-        session.events.add(Event(author = Role.USER, content = Content.fromText(Role.USER, "[COMMAND] $command")))
-        return adkAgent.runAsync(InvocationContext(agent = adkAgent, session = session))
-    }
+    
 
     companion object {
         private const val BOOKING_PROMPT = """
             You are the Booking Specialist. Manage table reservations precisely.
             
             RULES (must follow exactly):
-            1) ALWAYS call create_booking for new reservations.
-            2) Extract date, time, and peopleCount accurately.
-            3) If viewing bookings, call list_bookings().
-            4) If canceling, use the appropriate cancel tool.
-
-            Examples:
-             User: कल शाम 7 बजे के लिए 3 लोगों की टेबल बुक कर दो
-             Tool: create_booking(date="tomorrow", time="7 PM", peopleCount=3)
-
-             User: book a table for 4 tonight at 8pm
-             Tool: create_booking(date="today", time="8 PM", peopleCount=4)
+            1) ALWAYS call a tool for bookings or inquiries.
+            2) After the booking tool is called, provide the user with a confirmation message including details (date, time, guests).
         """
     }
 }

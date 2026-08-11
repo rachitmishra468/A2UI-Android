@@ -164,7 +164,7 @@
     "rating": 4.7,
     "reviewCount": 15000,
     "calories": 140,
-    "tags": ["Cold", "Classic", "Cola"],
+    "tags": ["Cold", "Classic", "Cola", "Drinks"],
     "isBestSeller": true
   },
   {
@@ -178,7 +178,7 @@
     "rating": 4.6,
     "reviewCount": 4200,
     "calories": 0,
-    "tags": ["Cold", "Sugar-Free"],
+    "tags": ["Cold", "Sugar-Free", "Drinks"],
     "isBestSeller": false
   },
   {
@@ -192,7 +192,7 @@
     "rating": 4.5,
     "reviewCount": 3800,
     "calories": 140,
-    "tags": ["Cold", "Fizzy"],
+    "tags": ["Cold", "Fizzy","Drinks"],
     "isBestSeller": false
   },
   {
@@ -206,7 +206,7 @@
     "rating": 4.4,
     "reviewCount": 2900,
     "calories": 160,
-    "tags": ["Cold", "Fizzy"],
+    "tags": ["Cold", "Fizzy","Drinks"],
     "isBestSeller": false
   },
   {
@@ -220,7 +220,7 @@
     "rating": 4.6,
     "reviewCount": 1500,
     "calories": 90,
-    "tags": ["Cold", "Refreshing"],
+    "tags": ["Cold", "Refreshing","Drinks"],
     "isBestSeller": false
   },
   {
@@ -248,7 +248,7 @@
     "rating": 4.9,
     "reviewCount": 5800,
     "calories": 340,
-    "tags": ["Sweet", "Cold"],
+    "tags": ["Sweet", "Cold","Drinks"],
     "isBestSeller": true
   },
   {

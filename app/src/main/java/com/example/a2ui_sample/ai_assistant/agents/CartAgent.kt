@@ -24,38 +24,27 @@ class CartAgent @Inject constructor(
 
     val adkAgent = LlmAgent(
         name = "CartAssistant",
+        description = "Handles all shopping cart operations including adding items, removing items, updating quantities, viewing the cart, and checkout.",
         model = geminiModel,
-        instruction = Instruction.invoke(CART_PROMPT),
         tools = cartTools.generatedTools(),
-        maxSteps = 1 // Prevent loops
+        instruction = Instruction.invoke(CART_PROMPT),
+        maxSteps = 2
     )
 
-    fun executeCommand(command: String, session: Session): Flow<Event> {
-        session.events.add(Event(author = Role.USER, content = Content.fromText(Role.USER, "[COMMAND] $command")))
-        return adkAgent.runAsync(InvocationContext(agent = adkAgent, session = session))
-    }
+
 
     companion object {
         private const val CART_PROMPT = """
             You are the Cart Specialist. Your job is to manage the user's shopping cart.
             
             RULES (must follow exactly):
-            1) ALWAYS call a tool. Do NOT return plain text.
-            2) If adding ("add", "order", "put", "ڈالیں"), call add_to_cart(itemName="<item>", quantity=<num>).
-            3) If viewing ("show cart", "what's in my cart"), call view_cart().
-            4) If removing ("remove", "delete"), call remove_from_cart(itemName="<item>").
-            5) If updating ("change quantity", "make it 3"), call update_cart_quantity(itemName="<item>", quantity=<num>).
-            6) If checking out ("checkout", "pay now"), call clear_cart() or appropriate checkout tool.
+            1) ALWAYS call a tool for any modification or view request.
+            2) After the tool call, confirm exactly what happened to the user in a short, polite message.
 
             Examples:
              User: add 2 Maharaja Chicken burgers
              Tool: add_to_cart(itemName="Maharaja Chicken", quantity=2)
-
-             User: 1 large fries cart mein daalo
-             Tool: add_to_cart(itemName="Large Fries", quantity=1)
-
-             User: show my cart
-             Tool: view_cart()
+             Response: "Added 2 Maharaja Chicken burgers to your cart!"
         """
     }
 }

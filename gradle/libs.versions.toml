@@ -12,8 +12,8 @@ composeBom = "2026.02.01"
 coil = "2.6.0"
 gson = "2.10.1"
 navigationCompose = "2.8.6"
-adk = "0.6.0"
-a2ui = "0.6.0"
+adk = "0.7.0"
+a2ui = "0.7.0"
 generativeai = "0.9.0"
 genai = "0.2.0"
 kotlinxSerialization = "1.7.3"
@@ -26,6 +26,7 @@ mockitoKotlin = "5.2.1"
 
 [libraries]
 google-adk = { group = "com.google.adk", name = "google-adk-kotlin-core-android", version.ref = "adk" }
+google-adk-core = { group = "com.google.adk", name = "google-adk-kotlin-core", version.ref = "adk" }
 generativeai = { group = "com.google.ai.client.generativeai", name = "generativeai", version.ref = "generativeai" }
 google-genai = { group = "com.google.genai", name = "google-genai-kotlin", version.ref = "genai" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }

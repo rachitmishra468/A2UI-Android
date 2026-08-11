@@ -98,7 +98,7 @@ fun ChatScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { 
+                title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                         Spacer(modifier = Modifier.width(8.dp))
@@ -106,8 +106,8 @@ fun ChatScreen(
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { 
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") 
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
@@ -209,7 +209,7 @@ fun ProcessingBubble(state: ChatLoadingState) {
                         fontWeight = FontWeight.Medium
                     )
                 }
-                
+
                 // If we have skeleton data or multi-steps, we could show them here
                 Spacer(modifier = Modifier.height(8.dp))
                 SkeletonCard()
@@ -319,7 +319,7 @@ fun A2UIPayloadRenderer(json: String, renderer: A2UIRenderer) {
         try {
             val firstLine = json.trim().split("\n").firstOrNull { it.isNotBlank() } ?: json
             val jsonObj = com.google.gson.JsonParser.parseString(firstLine).asJsonObject
-            
+
             when {
                 jsonObj.has("createSurface") -> jsonObj.getAsJsonObject("createSurface").get("surfaceId").asString
                 jsonObj.has("updateComponents") -> jsonObj.getAsJsonObject("updateComponents").get("surfaceId").asString
@@ -352,7 +352,7 @@ fun A2UIPayloadRenderer(json: String, renderer: A2UIRenderer) {
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
         if (surfaceId != null) {
             val surfaceState = renderer.getSurfaceState(surfaceId)
-            
+
             if (surfaceState is org.a2ui.compose.rendering.A2UIRendererState.Loading) {
                 SkeletonCard()
             } else {

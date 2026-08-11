@@ -1,17 +1,10 @@
 package com.example.a2ui_sample.ai_assistant.agents
-
+import com.example.a2ui_sample.ai_assistant.tools.generatedTools
 import com.example.a2ui_sample.BuildConfig
 import com.example.a2ui_sample.ai_assistant.tools.AssistantMenuTools
-import com.example.a2ui_sample.ai_assistant.tools.generatedTools
 import com.google.adk.kt.agents.Instruction
-import com.google.adk.kt.agents.InvocationContext
 import com.google.adk.kt.agents.LlmAgent
-import com.google.adk.kt.events.Event
 import com.google.adk.kt.models.Gemini
-import com.google.adk.kt.sessions.Session
-import com.google.adk.kt.types.Content
-import com.google.adk.kt.types.Role
-import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -24,35 +17,23 @@ class MenuAgent @Inject constructor(
 
     val adkAgent = LlmAgent(
         name = "MenuAssistant",
+        description = "Handles all menu-related queries including browsing, food search, pricing, specials, and recommendations.",
         model = geminiModel,
         instruction = Instruction.invoke(MENU_PROMPT),
         tools = menuTools.generatedTools(),
-        maxSteps = 1 // Prevent loops
+        maxSteps = 2
     )
 
-    fun executeCommand(command: String, session: Session): Flow<Event> {
-        session.events.add(Event(author = Role.USER, content = Content.fromText(Role.USER, "[COMMAND] $command")))
-        return adkAgent.runAsync(InvocationContext(agent = adkAgent, session = session))
-    }
-
     companion object {
+
         private const val MENU_PROMPT = """
-            You are the Menu Specialist. Your goal is to provide precise menu information.
+            You are the Menu Specialist AI for the restaurant. Your sole responsibility is to fetch and display menu items, prices, descriptions, and recommendations.
             
-            RULES (must follow exactly):
-            1) ALWAYS call a tool. Do NOT return plain text.
-            2) For general browsing ("show menu", "what can I order", "full menu"), call get_full_menu().
-            3) For filters ("veg", "under 250", "spicy"), call assistant_search_menu(category=null, diet="veg").
-            4) For specific item details, call get_menu_details(itemName="<extracted>").
-            5) For recommendations ("best items", "suggestions"), call get_recommendations().
-            6) If the user speaks Hindi/Urdu, translate the intent but keep item names accurate.
-
-            Examples:
-             User: Show me the full menu.
-             Tool: get_full_menu()
-
-             User: मेनू दिखाओ
-             Tool: get_full_menu()
+            RULES:
+            1. NO greetings like "Hello", "Hi", or pleasantries. Jump straight to the point.
+            2. ALWAYS use your available menu tools to fetch accurate, real-time data from the system. Do NOT make up menu items or prices.
+            3. If the user asks for a price limit (e.g., "under 250") or a dietary preference (e.g., "veg", "vegetarian", "non-veg"), pass those values to the appropriate search tool parameters.
+            4. When you use a menu tool, do NOT list the items as text in your response. Simply provide a short confirmation that you are displaying the results (e.g., "Sure, here are our vegetarian options:").
         """
     }
 }

@@ -33,11 +33,13 @@ class AssistantMenuTools @Inject constructor(
         name = "assistant_search_menu",
         description = "Search the restaurant menu by category and dietary preference."
     )
-    fun searchMenu(category: String?, diet: String?): Map<String, Any?> {
-        val items = repository.searchMenu(category = category, type = diet)
+    fun searchMenu(category: String?, diet: String?, maxPrice: Int?): Map<String, Any?> {
+        // Pass maxPrice to repository search if provided. repository may filter by price.
+        val items = repository.searchMenu(category = category, type = diet, maxPrice = maxPrice)
+        val priceInfo = maxPrice?.let { " under ₹$it" } ?: ""
         return mapOf(
             "result" to items,
-            "message" to "Found ${items.size} items for $category ($diet)."
+            "message" to "Found ${items.size} items for ${category ?: "all categories"} (${diet ?: "any diet"})$priceInfo."
         )
     }
 
@@ -79,13 +81,13 @@ class AssistantMenuTools @Inject constructor(
         )
     }
 
-    @Tool(
+   /* @Tool(
         name = "add_to_cart",
         description = "Add a menu item to the shopping cart with a specific quantity."
     )
     suspend fun addToCart(itemName: String, quantity: Int): Map<String, Any?> {
-        val item = repository.getMenuItems().find { 
-            it.name.contains(itemName, ignoreCase = true) 
+        val item = repository.getMenuItems().find {
+            it.name.contains(itemName, ignoreCase = true)
         }
         return if (item != null) {
             repository.addToCart(item.id)
@@ -100,5 +102,5 @@ class AssistantMenuTools @Inject constructor(
         } else {
             mapOf("message" to "Error: Item not found: $itemName")
         }
-    }
+    }*/
 }
