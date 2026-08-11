@@ -16,12 +16,11 @@ class RootRestaurantAgent @Inject constructor(
     private val feedbackAgent: FeedbackAgent
 ) {
     private val apiKey = BuildConfig.GEMINI_API_KEY
-    private val geminiModel = Gemini("gemini-3.6-flash", apiKey)
-
+    private val geminiModel = Gemini("gemini-3.1-flash-lite", apiKey)
     val adkAgent = LlmAgent(
         name = "RestaurantMaster",
         model = geminiModel,
-        description = "Router agent that decides which specialist to invoke based on the user query.",
+        description = "Router agent that orchestrates and chains specialized sub-agents for multi-intent requests.",
         instruction = Instruction.invoke(ROOT_AGENT_PROMPT),
         subAgents = listOf(
             menuAgent.adkAgent,
@@ -30,25 +29,44 @@ class RootRestaurantAgent @Inject constructor(
             orderAgent.adkAgent,
             feedbackAgent.adkAgent
         ),
+        // Allow multiple delegation steps so the Root agent can sequentially call
+        // multiple specialists for multi-intent user requests (e.g., "book a table and show my cart").
+        // Increased from 1 to 10 to permit several transfers within a single execution.
         maxSteps = 3
     )
 
     companion object {
 
         private const val ROOT_AGENT_PROMPT = """
-            You are the Master Restaurant Router Agent. Your job is to analyze the user's query and delegate (transfer) the conversation to the most appropriate sub-agent.
+            You are the Master Restaurant Orchestrator. Your job is to fulfill ALL parts of a user's request by delegating to specialized agents.
             
-            CRITICAL: Do not answer the query yourself. Use your sub-agent transfer tools immediately.
+            YOUR STRATEGY:
+            1. Analyze the user's message and identify every individual intent.
+            2. Delegate sequentially to the appropriate specialists using `transfer_to_agent`.
+            3. Once specialists have finished, provide a VERY BRIEF (one line) confirmation.
             
-            Routing Rules:
-            - If query is about menu, food, veg, burger, pizza, specials, price, or under ₹ -> Delegate to MenuAssistant.
-            - If query is about cart, adding items, removing items, checkout, or quantity -> Delegate to CartAssistant.
-            - If query is about booking, tables, or reservations -> Delegate to BookingAssistant.
-            - If query is about tracking, order numbers, or delivery status -> Delegate to OrderAssistant.
-            - If query is about feedback, ratings, or reviews -> Delegate to FeedbackAssistant.
-            - If no clear match -> Delegate to MenuAssistant.
-            
-            Ensure the sub-agent names match exactly with their registered names.
+            CRITICAL RULES:
+            - DO NOT repeat information already shown in UI cards (like item names, prices, or status).
+            - DO NOT hallucinate about availability. If a tool returns items, they ARE available unless explicitly stated otherwise in the data.
+            - If a specialist has already provided a response or called a tool, just say something like "Done! I've handled your request." or "Here is what I found for you:".
+            - Keep your final response extremely concise to avoid redundant double-responses.
+
+            Routing:
+            - Booking/Table -> BookingAssistant
+            - Cart/Add/Remove/View -> CartAssistant
+            - Menu/Search/Details -> MenuAssistant
+            - Orders/Tracking -> OrderAssistant
+            - Feedback -> FeedbackAssistant
         """
+    }
+
+    // Expose sub-agents by name so the orchestrator can run them individually when following transfer events.
+    fun getAgentByName(name: String): LlmAgent? = when (name) {
+        "MenuAssistant" -> menuAgent.adkAgent
+        "CartAssistant" -> cartAgent.adkAgent
+        "BookingAssistant" -> bookingAgent.adkAgent
+        "OrderAssistant" -> orderAgent.adkAgent
+        "FeedbackAssistant" -> feedbackAgent.adkAgent
+        else -> null
     }
 }

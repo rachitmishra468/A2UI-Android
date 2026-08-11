@@ -26,12 +26,24 @@ class AssistantUiMapper @Inject constructor() {
         val responses = event.functionResponses()
         if (responses.isNotEmpty()) {
             val toolName = responses.first().name
-            val data = responses.first().response
-            Log.d("AssistantFlow", "Mapper: Mapping tool $toolName")
+            val rawData = responses.first().response
+            
+            // ADK wraps tool return Map in a "result" key. Handle both Map and JSON String.
+            val data: Map<*, *> = when (val result = rawData["result"]) {
+                is Map<*, *> -> result
+                is String -> try {
+                    gson.fromJson(result, object : TypeToken<Map<String, Any?>>() {}.type)
+                } catch (e: Exception) {
+                    rawData
+                }
+                else -> rawData
+            }
+            
+            Log.d("AssistantFlow", "Mapper: Mapping tool $toolName with data keys: ${data.keys}")
 
             return when (toolName) {
-                "assistant_search_menu", "get_recommendations", "get_today_specials", "get_full_menu" -> {
-                    val rawItems = data["result"]
+                "assistant_search_menu", "get_recommendations", "get_today_specials", "get_full_menu", "search_menu" -> {
+                    val rawItems = data["result"] ?: data // handle different repository return styles
                     val items = convertToMenuItems(rawItems)
                     Log.d("AssistantFlow", "Mapper: Found ${items.size} items for $toolName")
                     
@@ -42,7 +54,7 @@ class AssistantUiMapper @Inject constructor() {
                     }
                 }
                 "get_menu_details" -> {
-                    val rawItem = data["result"]
+                    val rawItem = data["result"] ?: data
                     val item = convertToSingleMenuItem(rawItem)
                     item?.let { AssistantUiState.MenuDetails(it) } ?: AssistantUiState.TextResponse(text)
                 }
@@ -52,6 +64,47 @@ class AssistantUiMapper @Inject constructor() {
                     val qty = (data["quantity"] as? Number)?.toInt() ?: 1
                     item?.let { AssistantUiState.CartUpdate(it, qty, text) } ?: AssistantUiState.TextResponse(text)
                 }
+                "view_cart" -> {
+                    // In some cases it might be data["result"]["items"]
+                    val innerData = (data["result"] as? Map<*, *>) ?: data
+                    val rawItems = innerData["items"] ?: data["items"]
+                    val items = convertToCartItems(rawItems)
+                    val total = (innerData["total"] as? Number)?.toInt() 
+                        ?: (data["total"] as? Number)?.toInt() 
+                        ?: 0
+                    val msg = innerData["message"] as? String ?: data["message"] as? String ?: text
+                    Log.d("AssistantFlow", "Mapper: CartView result -> ${items.size} items, total: $total")
+                    AssistantUiState.CartView(items, total, msg)
+                }
+                "remove_from_cart", "update_cart_quantity" -> {
+                    val rawItem = data["item"]
+                    val item = convertToSingleMenuItem(rawItem)
+                    val qty = (data["quantity"] as? Number)?.toInt() ?: 0
+                    val msg = data["message"] as? String ?: text
+                    item?.let { AssistantUiState.CartUpdate(it, qty, msg) } ?: AssistantUiState.TextResponse(msg)
+                }
+                "clear_cart" -> {
+                    val msg = data["message"] as? String ?: text
+                    AssistantUiState.TextResponse(msg)
+                }
+                "create_booking" -> {
+                    val msg = data["message"] as? String ?: text
+                    val date = data["date"] as? String
+                    val time = data["time"] as? String
+                    val guests = (data["guests"] as? Number)?.toInt()
+                    AssistantUiState.BookingResult(msg, date, time, guests)
+                }
+                "submit_feedback" -> {
+                    val msg = data["message"] as? String ?: text
+                    val rating = (data["rating"] as? Number)?.toInt()
+                    AssistantUiState.FeedbackResult(msg, rating)
+                }
+                "track_order" -> {
+                    val msg = data["message"] as? String ?: text
+                    val status = data["deliveryStatus"] as? String ?: data["orderStatus"] as? String
+                    val eta = data["eta"] as? String
+                    AssistantUiState.OrderStatus(msg, status, eta)
+                }
                 else -> AssistantUiState.TextResponse(text)
             }
         }
@@ -59,16 +112,25 @@ class AssistantUiMapper @Inject constructor() {
         return AssistantUiState.TextResponse(text)
     }
 
-    /**
-     * Safely converts raw tool data to a List of MenuItems.
-     * Handles cases where data is returned as List<Map> instead of List<MenuItem>.
-     */
     private fun convertToMenuItems(data: Any?): List<MenuItem> {
-        if (data == null) return emptyList()
+        if (data == null) {
+            Log.d("AssistantFlow", "Mapper: Menu items data is null")
+            return emptyList()
+        }
+
+        // Handle case where data is a JSON string
+        if (data is String) {
+            return try {
+                val listType = object : TypeToken<List<MenuItem>>() {}.type
+                gson.fromJson(data, listType) ?: emptyList()
+            } catch (e: Exception) {
+                emptyList()
+            }
+        }
         
         return try {
             // Try direct cast
-            if (data is List<*> && data.firstOrNull() is MenuItem) {
+            if (data is List<*> && data.isNotEmpty() && data.firstOrNull() is MenuItem) {
                 @Suppress("UNCHECKED_CAST")
                 return data as List<MenuItem>
             }
@@ -116,12 +178,69 @@ class AssistantUiMapper @Inject constructor() {
         }
     }
 
+    private fun convertToCartItems(data: Any?): List<com.example.a2ui_sample.domain.model.CartItem> {
+        if (data == null) {
+            Log.d("AssistantFlow", "Mapper: Cart items data is null")
+            return emptyList()
+        }
+        
+        Log.d("AssistantFlow", "Mapper: Converting cart items. Raw type: ${data.javaClass.simpleName}")
+
+        // Handle case where data is a JSON string
+        if (data is String) {
+            return try {
+                val listType = object : TypeToken<List<com.example.a2ui_sample.domain.model.CartItem>>() {}.type
+                gson.fromJson(data, listType) ?: emptyList()
+            } catch (e: Exception) {
+                emptyList()
+            }
+        }
+
+        // Try direct cast
+        if (data is List<*>) {
+            if (data.isEmpty()) {
+                Log.d("AssistantFlow", "Mapper: Cart items list is empty")
+                return emptyList()
+            }
+            
+            val first = data.firstOrNull()
+            Log.d("AssistantFlow", "Mapper: First item type: ${first?.javaClass?.simpleName}")
+            
+            if (first is com.example.a2ui_sample.domain.model.CartItem) {
+                Log.d("AssistantFlow", "Mapper: Using direct cast for ${data.size} CartItems")
+                @Suppress("UNCHECKED_CAST")
+                return data as List<com.example.a2ui_sample.domain.model.CartItem>
+            }
+        }
+
+        return try {
+            val json = gson.toJson(data)
+            Log.d("AssistantFlow", "Mapper: Cart JSON: $json")
+            val listType = object : TypeToken<List<com.example.a2ui_sample.domain.model.CartItem>>() {}.type
+            val result: List<com.example.a2ui_sample.domain.model.CartItem> = gson.fromJson(json, listType) ?: emptyList()
+            Log.d("AssistantFlow", "Mapper: GSON conversion produced ${result.size} items")
+            result
+        } catch (e: Exception) {
+            Log.e("AssistantFlow", "Error converting cart items: ${e.message}")
+            emptyList()
+        }
+    }
+
     /**
      * Safely converts raw tool data to a single MenuItem.
      */
     private fun convertToSingleMenuItem(data: Any?): MenuItem? {
         if (data == null) return null
         if (data is MenuItem) return data
+        
+        // Handle JSON string
+        if (data is String) {
+            return try {
+                gson.fromJson(data, MenuItem::class.java)
+            } catch (e: Exception) {
+                null
+            }
+        }
         
         return try {
             val json = gson.toJson(data)

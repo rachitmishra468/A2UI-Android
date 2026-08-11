@@ -16,7 +16,7 @@ class AssistantBookingTools @Inject constructor(
         name = "create_booking",
         description = "Book a table at the restaurant."
     )
-    suspend fun createBooking(date: String, time: String, peopleCount: Int): String {
+    suspend fun createBooking(date: String, time: String, peopleCount: Int): Map<String, Any?> {
         return try {
             val reservation = Reservation(
                 id = ReservationId(),
@@ -30,9 +30,18 @@ class AssistantBookingTools @Inject constructor(
                 source = BookingSource.CHAT
             )
             reservationRepository.createReservation(reservation)
-            "✅ Table booked successfully for $peopleCount people on $date at $time."
+            mapOf(
+                "message" to "Table booked successfully for $peopleCount people on $date at $time.",
+                "date" to date,
+                "time" to time,
+                "guests" to peopleCount,
+                "success" to true
+            )
         } catch (e: Exception) {
-            "❌ Failed to create booking: ${e.message}"
+            mapOf(
+                "message" to "Failed to create booking: ${e.message}",
+                "success" to false
+            )
         }
     }
 

@@ -11,7 +11,7 @@ data class MenuItem(
     val id: Int,
     val name: String,
     val description: String,
-    val price: Price,
+    val price: Price = Price(0),
     val category: String,
     val type: MenuItemType,
     val image: String,

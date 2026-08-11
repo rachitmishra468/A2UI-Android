@@ -115,6 +115,26 @@ class AssistantViewModel @Inject constructor(
                             rdr.setLenient(true)
                             gson.fromJson(rdr, AssistantUiState.CartUpdate::class.java)
                         }
+                        "CartView" -> {
+                            val rdr = JsonReader(StringReader(dataJson))
+                            rdr.setLenient(true)
+                            gson.fromJson(rdr, AssistantUiState.CartView::class.java)
+                        }
+                        "BookingResult" -> {
+                            val rdr = JsonReader(StringReader(dataJson))
+                            rdr.setLenient(true)
+                            gson.fromJson(rdr, AssistantUiState.BookingResult::class.java)
+                        }
+                        "FeedbackResult" -> {
+                            val rdr = JsonReader(StringReader(dataJson))
+                            rdr.setLenient(true)
+                            gson.fromJson(rdr, AssistantUiState.FeedbackResult::class.java)
+                        }
+                        "OrderStatus" -> {
+                            val rdr = JsonReader(StringReader(dataJson))
+                            rdr.setLenient(true)
+                            gson.fromJson(rdr, AssistantUiState.OrderStatus::class.java)
+                        }
                         "Error" -> AssistantUiState.Error(fallbackText)
                         else -> AssistantUiState.TextResponse(fallbackText)
                     }
@@ -147,6 +167,10 @@ class AssistantViewModel @Inject constructor(
                 is AssistantUiState.TextResponse -> content.text
                 is AssistantUiState.Error -> content.message
                 is AssistantUiState.CartUpdate -> content.message
+                is AssistantUiState.CartView -> content.message
+                is AssistantUiState.BookingResult -> content.message
+                is AssistantUiState.FeedbackResult -> content.message
+                is AssistantUiState.OrderStatus -> content.message
                 else -> "I've updated the view for you:"
             }
             
@@ -206,12 +230,14 @@ class AssistantViewModel @Inject constructor(
         viewModelScope.launch {
             isTyping = true
             try {
-                val uiState = orchestrator.processQuery(text)
-                val assistantMsg = AssistantChatMessage(
-                    content = uiState,
-                    isFromUser = false
-                )
-                saveMessageToDb(assistantMsg)
+                val uiStates = orchestrator.processQuery(text)
+                uiStates.forEach { uiState ->
+                    val assistantMsg = AssistantChatMessage(
+                        content = uiState,
+                        isFromUser = false
+                    )
+                    saveMessageToDb(assistantMsg)
+                }
             } catch (e: Exception) {
                 Log.e("AssistantFlow", "SendMessage error", e)
                 val errorMsg = AssistantChatMessage(

@@ -61,7 +61,7 @@ fun MenuItemCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "₹${item.price.amount}",
+                        text = "₹${item.price?.amount ?: 0}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -170,7 +170,7 @@ fun MenuDetailCard(item: MenuItem, viewModel: AssistantViewModel) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = "Price: ₹${item.price.amount}", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+                Text(text = "Price: ₹${item.price?.amount ?: 0}", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
                 
                 if (quantity > 0) {
                     QuantitySelector(
@@ -214,7 +214,141 @@ fun CartUpdateCard(item: MenuItem, quantity: Int, message: String) {
             Spacer(modifier = Modifier.width(16.dp))
             Column {
                 Text(text = message, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-                Text(text = "Qty: $quantity", style = MaterialTheme.typography.bodySmall)
+                if (quantity > 0) {
+                    Text(text = "Qty: $quantity", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CartCard(items: List<com.example.a2ui_sample.domain.model.CartItem>, total: Int, message: String) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(text = "🛒 Shopping Cart", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(text = message, style = MaterialTheme.typography.bodyLarge)
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            if (items.isEmpty()) {
+                // message should already say it's empty
+            } else {
+                items.forEach { cartItem ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column {
+                            Text(text = cartItem.menuItem.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                            Text(text = "${cartItem.quantity} x ₹${cartItem.menuItem.price.amount}", style = MaterialTheme.typography.bodySmall)
+                        }
+                        Text(text = "₹${cartItem.menuItem.price.amount * cartItem.quantity}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                HorizontalDivider()
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(text = "Total", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text(text = "₹$total", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun BookingCard(message: String, date: String?, time: String?, guests: Int?) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(text = "📅 Table Booking", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(text = message, style = MaterialTheme.typography.bodyLarge)
+            if (date != null || time != null || guests != null) {
+                Spacer(modifier = Modifier.height(8.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.2f))
+                Spacer(modifier = Modifier.height(8.dp))
+                if (date != null) Text(text = "Date: $date", style = MaterialTheme.typography.bodyMedium)
+                if (time != null) Text(text = "Time: $time", style = MaterialTheme.typography.bodyMedium)
+                if (guests != null) Text(text = "Guests: $guests", style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+    }
+}
+
+@Composable
+fun FeedbackCard(message: String, rating: Int?) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(text = "⭐ Feedback", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(text = message, style = MaterialTheme.typography.bodyLarge)
+            if (rating != null) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row {
+                    repeat(5) { index ->
+                        Text(
+                            text = "★",
+                            color = if (index < rating) Color(0xFFFFD700) else Color.LightGray,
+                            style = MaterialTheme.typography.headlineSmall
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun OrderStatusCard(message: String, status: String?, eta: String?) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(text = "🚚 Order Status", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(text = message, style = MaterialTheme.typography.bodyLarge)
+            if (status != null || eta != null) {
+                Spacer(modifier = Modifier.height(8.dp))
+                if (status != null) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.primary,
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
+                        Text(
+                            text = status.uppercase(),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+                }
+                if (eta != null) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(text = "Estimated Arrival: $eta", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                }
             }
         }
     }

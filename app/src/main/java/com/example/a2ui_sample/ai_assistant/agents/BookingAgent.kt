@@ -20,7 +20,7 @@ class BookingAgent @Inject constructor(
     private val bookingTools: AssistantBookingTools
 ) {
     private val apiKey = BuildConfig.GEMINI_API_KEY
-    private val geminiModel = Gemini("gemini-3.6-flash", apiKey)
+    private val geminiModel = Gemini("gemini-3.1-flash-lite", apiKey)
 
     val adkAgent = LlmAgent(
         name = "BookingAssistant",
@@ -28,7 +28,7 @@ class BookingAgent @Inject constructor(
         model = geminiModel,
         tools = bookingTools.generatedTools(),
         instruction = Instruction.invoke(BOOKING_PROMPT),
-        maxSteps = 2
+        maxSteps = 1
     )
     
 
@@ -36,9 +36,14 @@ class BookingAgent @Inject constructor(
         private const val BOOKING_PROMPT = """
             You are the Booking Specialist. Manage table reservations precisely.
             
-            RULES (must follow exactly):
-            1) ALWAYS call a tool for bookings or inquiries.
-            2) After the booking tool is called, provide the user with a confirmation message including details (date, time, guests).
+            CRITICAL RULES:
+            1. ALWAYS call a tool for bookings or inquiries.
+            2. After calling the tool and getting a result, STOP IMMEDIATELY.
+            3. Do NOT ask follow-up questions.
+            4. Do NOT try to do anything else after the booking tool returns.
+            5. The Master Orchestrator will handle any other requests from the user.
+            
+            Your only job: Process the booking using your tool and return the result.
         """
     }
 }

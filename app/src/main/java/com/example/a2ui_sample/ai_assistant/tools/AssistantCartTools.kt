@@ -13,28 +13,72 @@ class AssistantCartTools @Inject constructor(
         name = "view_cart",
         description = "Show the current items in the shopping cart."
     )
-    suspend fun viewCart(): String {
+    suspend fun viewCart(): Map<String, Any?> {
         val cartItems = repository.getCart()
-        if (cartItems.isEmpty()) return "Your cart is currently empty."
         val total = cartItems.sumOf { it.menuItem.price.amount * it.quantity }
-        val itemsList = cartItems.joinToString("\n") { 
-            "- ${it.menuItem.name} (Qty: ${it.quantity}, Price: ₹${it.menuItem.price.amount * it.quantity})"
+        return mapOf(
+            "items" to cartItems,
+            "total" to total,
+            "message" to if (cartItems.isEmpty()) "Your cart is currently empty." else "Here are the items in your cart."
+        )
+    }
+
+    @Tool(
+        name = "add_to_cart",
+        description = "Add a specific menu item to the shopping cart by its name and quantity."
+    )
+    suspend fun addToCart(itemName: String, quantity: Int): Map<String, Any?> {
+        val allItems = repository.getMenuItems()
+        val itemToAdd = allItems.find { it.name.contains(itemName, ignoreCase = true) }
+
+        return if (itemToAdd != null) {
+            val cartItems = repository.getCart()
+            val existingItem = cartItems.find { it.menuItem.id == itemToAdd.id }
+            val currentQty = existingItem?.quantity ?: 0
+            val targetQty = currentQty + (if (quantity <= 0) 1 else quantity)
+
+            if (currentQty == 0) {
+                repository.addToCart(itemToAdd.id)
+                if (targetQty > 1) {
+                    repository.updateCartQuantity(itemToAdd.id, targetQty)
+                }
+            } else {
+                repository.updateCartQuantity(itemToAdd.id, targetQty)
+            }
+
+            mapOf(
+                "message" to "Successfully added ${if (quantity <= 0) 1 else quantity} x ${itemToAdd.name} to your cart.",
+                "success" to true,
+                "item" to itemToAdd,
+                "quantity" to (if (quantity <= 0) 1 else quantity)
+            )
+        } else {
+            mapOf(
+                "message" to "Could not find '$itemName' in the menu. Try being more specific or browse the menu.",
+                "success" to false
+            )
         }
-        return "Cart Items:\n$itemsList\n\nTotal: ₹$total"
     }
 
     @Tool(
         name = "remove_from_cart",
         description = "Remove a specific item from the shopping cart."
     )
-    suspend fun removeFromCart(itemName: String): String {
+    suspend fun removeFromCart(itemName: String): Map<String, Any?> {
         val cartItems = repository.getCart()
         val itemToRemove = cartItems.find { it.menuItem.name.contains(itemName, ignoreCase = true) }
         return if (itemToRemove != null) {
             repository.removeFromCart(itemToRemove.menuItem.id)
-            "Successfully removed ${itemToRemove.menuItem.name} from cart."
+            mapOf(
+                "message" to "Successfully removed ${itemToRemove.menuItem.name} from cart.",
+                "success" to true,
+                "item" to itemToRemove.menuItem
+            )
         } else {
-            "Item '$itemName' is not in your cart."
+            mapOf(
+                "message" to "Item '$itemName' is not in your cart.",
+                "success" to false
+            )
         }
     }
 
@@ -42,14 +86,22 @@ class AssistantCartTools @Inject constructor(
         name = "update_cart_quantity",
         description = "Update the quantity of an item already in the cart."
     )
-    suspend fun updateCartQuantity(itemName: String, quantity: Int): String {
+    suspend fun updateCartQuantity(itemName: String, quantity: Int): Map<String, Any?> {
         val cartItems = repository.getCart()
         val itemToUpdate = cartItems.find { it.menuItem.name.contains(itemName, ignoreCase = true) }
         return if (itemToUpdate != null) {
             repository.updateCartQuantity(itemToUpdate.menuItem.id, quantity)
-            "Updated ${itemToUpdate.menuItem.name} quantity to $quantity."
+            mapOf(
+                "message" to "Updated ${itemToUpdate.menuItem.name} quantity to $quantity.",
+                "success" to true,
+                "item" to itemToUpdate.menuItem,
+                "quantity" to quantity
+            )
         } else {
-            "Item '$itemName' is not in your cart. Add it first!"
+            mapOf(
+                "message" to "Item '$itemName' is not in your cart. Add it first!",
+                "success" to false
+            )
         }
     }
 
@@ -57,8 +109,8 @@ class AssistantCartTools @Inject constructor(
         name = "clear_cart",
         description = "Remove all items from the shopping cart."
     )
-    suspend fun clearCart(): String {
+    suspend fun clearCart(): Map<String, Any?> {
         repository.clearCart()
-        return "Your cart has been cleared."
+        return mapOf("message" to "Your cart has been cleared.", "success" to true)
     }
 }

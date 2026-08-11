@@ -22,9 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.a2ui_sample.ai_assistant.ui.components.CartUpdateCard
-import com.example.a2ui_sample.ai_assistant.ui.components.MenuDetailCard
-import com.example.a2ui_sample.ai_assistant.ui.components.MenuHorizontalList
+import com.example.a2ui_sample.ai_assistant.ui.components.*
 import com.example.a2ui_sample.ai_assistant.ui.model.AssistantChatMessage
 import com.example.a2ui_sample.ai_assistant.ui.model.AssistantUiState
 import com.example.a2ui_sample.ai_assistant.viewmodel.AssistantViewModel
@@ -194,6 +192,18 @@ fun AssistantMessageBubble(message: AssistantChatMessage, viewModel: AssistantVi
             }
             is AssistantUiState.CartUpdate -> {
                 CartUpdateCard(item = content.item, quantity = content.quantity, message = content.message)
+            }
+            is AssistantUiState.CartView -> {
+                CartCard(items = content.items, total = content.total, message = content.message)
+            }
+            is AssistantUiState.BookingResult -> {
+                BookingCard(message = content.message, date = content.date, time = content.time, guests = content.guests)
+            }
+            is AssistantUiState.FeedbackResult -> {
+                FeedbackCard(message = content.message, rating = content.rating)
+            }
+            is AssistantUiState.OrderStatus -> {
+                OrderStatusCard(message = content.message, status = content.status, eta = content.eta)
             }
             is AssistantUiState.Error -> {
                 TextBubble(text = content.message, isFromUser = false, isError = true)

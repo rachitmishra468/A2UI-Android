@@ -20,7 +20,7 @@ class CartAgent @Inject constructor(
     private val cartTools: AssistantCartTools
 ) {
     private val apiKey = BuildConfig.GEMINI_API_KEY
-    private val geminiModel = Gemini("gemini-3.6-flash", apiKey)
+    private val geminiModel = Gemini("gemini-3.1-flash-lite", apiKey)
 
     val adkAgent = LlmAgent(
         name = "CartAssistant",
@@ -28,7 +28,7 @@ class CartAgent @Inject constructor(
         model = geminiModel,
         tools = cartTools.generatedTools(),
         instruction = Instruction.invoke(CART_PROMPT),
-        maxSteps = 2
+        maxSteps = 1
     )
 
 
@@ -37,10 +37,15 @@ class CartAgent @Inject constructor(
         private const val CART_PROMPT = """
             You are the Cart Specialist. Your job is to manage the user's shopping cart.
             
-            RULES (must follow exactly):
-            1) ALWAYS call a tool for any modification or view request.
-            2) After the tool call, confirm exactly what happened to the user in a short, polite message.
-
+            CRITICAL RULES:
+            1. ALWAYS call a tool for any modification or view request.
+            2. After calling the tool and getting a result, STOP IMMEDIATELY.
+            3. Do NOT ask follow-up questions.
+            4. Do NOT try to do anything else after the tool returns.
+            5. The Master Orchestrator will handle any other requests from the user.
+            
+            Your only job: Execute the cart operation using your tool and return the result.
+            
             Examples:
              User: add 2 Maharaja Chicken burgers
              Tool: add_to_cart(itemName="Maharaja Chicken", quantity=2)

@@ -20,7 +20,7 @@ class FeedbackAgent @Inject constructor(
     private val feedbackTools: AssistantFeedbackTools
 ) {
     private val apiKey = BuildConfig.GEMINI_API_KEY
-    private val geminiModel = Gemini("gemini-3.6-flash", apiKey)
+    private val geminiModel = Gemini("gemini-3.1-flash-lite", apiKey)
 
     val adkAgent = LlmAgent(
         name = "FeedbackAssistant",
@@ -28,7 +28,7 @@ class FeedbackAgent @Inject constructor(
         model = geminiModel,
         tools = feedbackTools.generatedTools(),
         instruction = Instruction.invoke(FEEDBACK_PROMPT),
-        maxSteps = 2
+        maxSteps = 1
     )
 
 
@@ -36,7 +36,9 @@ class FeedbackAgent @Inject constructor(
     companion object {
         private const val FEEDBACK_PROMPT = """
             You are the Feedback Specialist. 
-            
+            "CRITICAL: Once you have successfully called your tool and executed the task,
+             stop immediately and output the results. Do not ask follow-up questions to the user, 
+             allowing the Master Orchestrator to handle any other pending requests."
             RULES (must follow exactly):
             1) ALWAYS call the feedback tool to record ratings or comments.
             2) After recording, thank the user for their contribution.

@@ -11,7 +11,8 @@
     "reviewCount": 4500,
     "calories": 540,
     "tags": ["Popular", "Spicy"],
-    "isBestSeller": true
+    "isBestSeller": true,
+    "isAvailable": true
   },
   {
     "id": 2,
@@ -25,7 +26,8 @@
     "reviewCount": 8200,
     "calories": 340,
     "tags": ["Classic", "Value"],
-    "isBestSeller": true
+    "isBestSeller": true,
+    "isAvailable": true
   },
   {
     "id": 3,
@@ -39,7 +41,8 @@
     "reviewCount": 3200,
     "calories": 450,
     "tags": ["Spicy", "New"],
-    "isBestSeller": true
+    "isBestSeller": true,
+    "isAvailable": true
   },
   {
     "id": 4,
@@ -53,7 +56,8 @@
     "reviewCount": 5100,
     "calories": 480,
     "tags": ["Spicy", "Favorite"],
-    "isBestSeller": true
+    "isBestSeller": true,
+    "isAvailable": true
   },
   {
     "id": 5,
@@ -67,7 +71,8 @@
     "reviewCount": 2100,
     "calories": 520,
     "tags": ["Double Decker", "Veggie"],
-    "isBestSeller": false
+    "isBestSeller": false,
+    "isAvailable": true
   },
   {
     "id": 6,
@@ -81,7 +86,8 @@
     "reviewCount": 3500,
     "calories": 590,
     "tags": ["Double Decker", "Premium"],
-    "isBestSeller": true
+    "isBestSeller": true,
+    "isAvailable": true
   },
   {
     "id": 7,
@@ -95,7 +101,8 @@
     "reviewCount": 1800,
     "calories": 380,
     "tags": ["Classic", "Healthy"],
-    "isBestSeller": false
+    "isBestSeller": false,
+    "isAvailable": true
   },
   {
     "id": 8,
@@ -109,7 +116,8 @@
     "reviewCount": 12000,
     "calories": 230,
     "tags": ["Side", "Classic"],
-    "isBestSeller": true
+    "isBestSeller": true,
+    "isAvailable": true
   },
   {
     "id": 9,
@@ -123,7 +131,8 @@
     "reviewCount": 9500,
     "calories": 320,
     "tags": ["Side", "Popular"],
-    "isBestSeller": true
+    "isBestSeller": true,
+    "isAvailable": true
   },
   {
     "id": 10,
@@ -137,7 +146,8 @@
     "reviewCount": 7200,
     "calories": 480,
     "tags": ["Side", "Shareable"],
-    "isBestSeller": true
+    "isBestSeller": true,
+    "isAvailable": true
   },
   {
     "id": 11,
@@ -151,7 +161,8 @@
     "reviewCount": 6500,
     "calories": 330,
     "tags": ["Spicy", "New"],
-    "isBestSeller": true
+    "isBestSeller": true,
+    "isAvailable": true
   },
   {
     "id": 12,
@@ -165,7 +176,8 @@
     "reviewCount": 15000,
     "calories": 140,
     "tags": ["Cold", "Classic", "Cola", "Drinks"],
-    "isBestSeller": true
+    "isBestSeller": true,
+    "isAvailable": true
   },
   {
     "id": 13,
@@ -179,7 +191,8 @@
     "reviewCount": 4200,
     "calories": 0,
     "tags": ["Cold", "Sugar-Free", "Drinks"],
-    "isBestSeller": false
+    "isBestSeller": false,
+    "isAvailable": true
   },
   {
     "id": 14,
@@ -193,7 +206,8 @@
     "reviewCount": 3800,
     "calories": 140,
     "tags": ["Cold", "Fizzy","Drinks"],
-    "isBestSeller": false
+    "isBestSeller": false,
+    "isAvailable": true
   },
   {
     "id": 15,
@@ -207,7 +221,8 @@
     "reviewCount": 2900,
     "calories": 160,
     "tags": ["Cold", "Fizzy","Drinks"],
-    "isBestSeller": false
+    "isBestSeller": false,
+    "isAvailable": true
   },
   {
     "id": 16,
@@ -221,7 +236,8 @@
     "reviewCount": 1500,
     "calories": 90,
     "tags": ["Cold", "Refreshing","Drinks"],
-    "isBestSeller": false
+    "isBestSeller": false,
+    "isAvailable": true
   },
   {
     "id": 17,
@@ -235,7 +251,8 @@
     "reviewCount": 3100,
     "calories": 210,
     "tags": ["Cold", "Caffeine"],
-    "isBestSeller": true
+    "isBestSeller": true,
+    "isAvailable": true
   },
   {
     "id": 18,
@@ -249,7 +266,8 @@
     "reviewCount": 5800,
     "calories": 340,
     "tags": ["Sweet", "Cold","Drinks"],
-    "isBestSeller": true
+    "isBestSeller": true,
+    "isAvailable": true
   },
   {
     "id": 19,
@@ -263,7 +281,8 @@
     "reviewCount": 9200,
     "calories": 150,
     "tags": ["Sweet", "Value"],
-    "isBestSeller": true
+    "isBestSeller": true,
+    "isAvailable": true
   },
   {
     "id": 20,
@@ -277,7 +296,8 @@
     "reviewCount": 4500,
     "calories": 280,
     "tags": ["Sweet", "Classic"],
-    "isBestSeller": true
+    "isBestSeller": true,
+    "isAvailable": true
   },
   {
     "id": 21,
@@ -291,7 +311,8 @@
     "reviewCount": 2100,
     "calories": 320,
     "tags": ["Sweet", "Warm"],
-    "isBestSeller": false
+    "isBestSeller": false,
+    "isAvailable": true
   },
   {
     "id": 22,
@@ -305,7 +326,8 @@
     "reviewCount": 1800,
     "calories": 2800,
     "tags": ["Combo", "Family", "Non-Veg", "Cold Drinks"],
-    "isBestSeller": true
+    "isBestSeller": true,
+    "isAvailable": true
   },
   {
     "id": 23,
@@ -319,7 +341,8 @@
     "reviewCount": 1200,
     "calories": 2200,
     "tags": ["Combo", "Family", "Veg", "Cold Drinks"],
-    "isBestSeller": true
+    "isBestSeller": true,
+    "isAvailable": true
   },
   {
     "id": 24,
@@ -333,7 +356,8 @@
     "reviewCount": 2800,
     "calories": 920,
     "tags": ["Combo", "Chicken"],
-    "isBestSeller": true
+    "isBestSeller": true,
+    "isAvailable": true
   },
   {
     "id": 25,
@@ -347,7 +371,8 @@
     "reviewCount": 5100,
     "calories": 540,
     "tags": ["Combo", "Student"],
-    "isBestSeller": true
+    "isBestSeller": true,
+    "isAvailable": true
   },
   {
     "id": 26,
@@ -361,6 +386,7 @@
     "reviewCount": 1200,
     "calories": 450,
     "tags": ["New", "Cheese", "Pizza"],
-    "isBestSeller": false
+    "isBestSeller": false,
+    "isAvailable": true
   }
 ]

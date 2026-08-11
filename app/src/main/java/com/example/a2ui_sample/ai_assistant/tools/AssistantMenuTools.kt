@@ -81,26 +81,4 @@ class AssistantMenuTools @Inject constructor(
         )
     }
 
-   /* @Tool(
-        name = "add_to_cart",
-        description = "Add a menu item to the shopping cart with a specific quantity."
-    )
-    suspend fun addToCart(itemName: String, quantity: Int): Map<String, Any?> {
-        val item = repository.getMenuItems().find {
-            it.name.contains(itemName, ignoreCase = true)
-        }
-        return if (item != null) {
-            repository.addToCart(item.id)
-            if (quantity > 1) {
-                repository.updateCartQuantity(item.id, quantity)
-            }
-            mapOf(
-                "item" to item,
-                "quantity" to quantity,
-                "message" to "Added $quantity x ${item.name} to cart."
-            )
-        } else {
-            mapOf("message" to "Error: Item not found: $itemName")
-        }
-    }*/
 }

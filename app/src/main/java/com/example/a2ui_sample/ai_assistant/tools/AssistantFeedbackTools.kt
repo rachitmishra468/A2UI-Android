@@ -15,7 +15,7 @@ class AssistantFeedbackTools @Inject constructor(
         name = "submit_feedback",
         description = "Submit a rating and comment for the restaurant or an order."
     )
-    suspend fun submitFeedback(rating: Int, comment: String, orderId: String?): String {
+    suspend fun submitFeedback(rating: Int, comment: String, orderId: String?): Map<String, Any?> {
         return try {
             val r = Rating(rating.coerceIn(1, 5))
             val feedback = Feedback(
@@ -30,9 +30,17 @@ class AssistantFeedbackTools @Inject constructor(
                 createdAt = System.currentTimeMillis()
             )
             feedbackRepository.submitFeedback(feedback)
-            "✅ Thank you for your $rating-star feedback!"
+            mapOf(
+                "message" to "Thank you for your $rating-star feedback!",
+                "rating" to rating,
+                "comment" to comment,
+                "success" to true
+            )
         } catch (e: Exception) {
-            "❌ Failed to submit feedback: ${e.message}"
+            mapOf(
+                "message" to "Failed to submit feedback: ${e.message}",
+                "success" to false
+            )
         }
     }
 }

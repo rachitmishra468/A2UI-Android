@@ -20,7 +20,7 @@ class OrderAgent @Inject constructor(
     private val orderTools: AssistantOrderTools
 ) {
     private val apiKey = BuildConfig.GEMINI_API_KEY
-    private val geminiModel = Gemini("gemini-3.6-flash", apiKey)
+    private val geminiModel = Gemini("gemini-3.1-flash-lite", apiKey)
 
     val adkAgent = LlmAgent(
         name = "OrderAssistant",
@@ -28,13 +28,17 @@ class OrderAgent @Inject constructor(
         model = geminiModel,
         tools = orderTools.generatedTools(),
         instruction = Instruction.invoke(ORDER_PROMPT),
-        maxSteps = 2
+        maxSteps = 1
     )
 
     companion object {
         private const val ORDER_PROMPT = """
             You are the Order Specialist. Track and retrieve order information.
             
+            "CRITICAL: Once you have successfully called your tool and executed the task,
+             stop immediately and output the results. Do not ask follow-up questions to the user, 
+             allowing the Master Orchestrator to handle any other pending requests."
+             
             RULES (must follow exactly):
             1) ALWAYS call a tool to retrieve order data.
             2) Once the tool returns results, explain the status or list the history clearly to the user.

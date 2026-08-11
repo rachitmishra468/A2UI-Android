@@ -39,7 +39,7 @@ class RestaurantAgent @Inject constructor(
     private val responseBuilder = A2UIResponseBuilder()
     private val gson = Gson()
     private val apiKey = BuildConfig.GEMINI_API_KEY
-    private val geminiModel = Gemini("gemini-3.6-flash", apiKey)
+    private val geminiModel = Gemini("gemini-3.1-flash-lite", apiKey)
 
     private val sessionKey = SessionKey("RestaurantApp", "DefaultUser", "Session-Restaurant")
     private val session = Session(sessionKey)

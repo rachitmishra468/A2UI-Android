@@ -18,15 +18,24 @@ class AssistantOrderTools @Inject constructor(
         name = "track_order",
         description = "Track the status of an order."
     )
-    suspend fun trackOrder(orderId: String?): String {
+    suspend fun trackOrder(orderId: String?): Map<String, Any?> {
         val id = if (orderId != null) OrderId(orderId) else {
             orderRepository.getAllOrders().first().firstOrNull()?.id
-        } ?: return "No orders found to track."
+        } ?: return mapOf("message" to "No orders found to track.")
 
-        val order = orderRepository.getOrderById(id) ?: return "Order not found."
+        val order = orderRepository.getOrderById(id) ?: return mapOf("message" to "Order not found.")
         val delivery = deliveryRepository.getDeliveryByOrderId(id)
         
-        return "Order Status: ${order.status}\n" + (delivery?.let { "Delivery Status: ${it.status}" } ?: "")
+        val eta = delivery?.estimatedArrivalAt?.let {
+            java.text.SimpleDateFormat("hh:mm a", java.util.Locale.getDefault()).format(java.util.Date(it))
+        }
+
+        return mapOf(
+            "message" to "Here is the status of your order ${id.value}:",
+            "orderStatus" to order.status.name,
+            "deliveryStatus" to (delivery?.status?.name ?: "UNKNOWN"),
+            "eta" to eta
+        )
     }
 
     @Tool(
