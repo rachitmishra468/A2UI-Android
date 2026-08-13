@@ -155,6 +155,7 @@ class AssistantViewModel @Inject constructor(
     }
 
     private fun saveMessageToDb(message: AssistantChatMessage) {
+        Log.d("AssistantFlow", "💾 Saving message to DB: isFromUser=${message.isFromUser}, type=${message.content.javaClass.simpleName}")
         viewModelScope.launch {
             val content = message.content
             val typeName = content.javaClass.simpleName
@@ -219,6 +220,7 @@ class AssistantViewModel @Inject constructor(
     }
 
     fun sendMessage(text: String) {
+        Log.d("AssistantFlow", "✉️ User sending message: '$text'")
         if (text.isBlank()) return
 
         val userMsg = AssistantChatMessage(

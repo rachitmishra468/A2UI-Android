@@ -22,6 +22,7 @@ class AssistantUiMapper @Inject constructor() {
 
     fun mapEventToUi(event: Event): AssistantUiState {
         val text = event.content?.parts?.firstOrNull()?.text ?: ""
+        Log.d("AssistantFlow", "🗺️ Mapping event. Content: '${text.take(50)}...'")
         
         val responses = event.functionResponses()
         if (responses.isNotEmpty()) {

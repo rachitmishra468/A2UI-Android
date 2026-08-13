@@ -173,6 +173,9 @@ fun AssistantChatScreen(
 
 @Composable
 fun AssistantMessageBubble(message: AssistantChatMessage, viewModel: AssistantViewModel) {
+    val contentName = message.content.javaClass.simpleName
+    android.util.Log.d("AssistantFlow", "📱 Rendering Bubble: type=$contentName, isFromUser=${message.isFromUser}")
+
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = if (message.isFromUser) Alignment.End else Alignment.Start

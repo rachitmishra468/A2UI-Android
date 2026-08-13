@@ -31,7 +31,7 @@ class RootRestaurantAgent @Inject constructor(
         ),
         // Allow multiple delegation steps so the Root agent can sequentially call
         // multiple specialists for multi-intent user requests (e.g., "book a table and show my cart").
-        // Increased from 1 to 10 to permit several transfers within a single execution.
+        // Increased from 1 to 3 to permit several transfers within a single execution.
         maxSteps = 3
     )
 

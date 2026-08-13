@@ -130,6 +130,7 @@ fun QuantitySelector(
 
 @Composable
 fun MenuHorizontalList(items: List<MenuItem>, viewModel: AssistantViewModel) {
+    android.util.Log.d("AssistantFlow", "🎬 Rendering MenuHorizontalList with ${items.size} items")
     LazyRow(
         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -142,6 +143,7 @@ fun MenuHorizontalList(items: List<MenuItem>, viewModel: AssistantViewModel) {
 
 @Composable
 fun MenuDetailCard(item: MenuItem, viewModel: AssistantViewModel) {
+    android.util.Log.d("AssistantFlow", "🎬 Rendering MenuDetailCard for ${item.name}")
     val cartItem = viewModel.cartItems.find { it.menuItem.id == item.id }
     val quantity = cartItem?.quantity ?: 0
 
@@ -195,6 +197,7 @@ fun MenuDetailCard(item: MenuItem, viewModel: AssistantViewModel) {
 
 @Composable
 fun CartUpdateCard(item: MenuItem, quantity: Int, message: String) {
+    android.util.Log.d("AssistantFlow", "🎬 Rendering CartUpdateCard: item=${item.name}, qty=$quantity")
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -224,6 +227,7 @@ fun CartUpdateCard(item: MenuItem, quantity: Int, message: String) {
 
 @Composable
 fun CartCard(items: List<com.example.a2ui_sample.domain.model.CartItem>, total: Int, message: String) {
+    android.util.Log.d("AssistantFlow", "🎬 Rendering CartCard with ${items.size} items, total: $total")
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -268,6 +272,7 @@ fun CartCard(items: List<com.example.a2ui_sample.domain.model.CartItem>, total: 
 
 @Composable
 fun BookingCard(message: String, date: String?, time: String?, guests: Int?) {
+    android.util.Log.d("AssistantFlow", "🎬 Rendering BookingCard: $message")
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -292,6 +297,7 @@ fun BookingCard(message: String, date: String?, time: String?, guests: Int?) {
 
 @Composable
 fun FeedbackCard(message: String, rating: Int?) {
+    android.util.Log.d("AssistantFlow", "🎬 Rendering FeedbackCard: rating=$rating")
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -320,6 +326,7 @@ fun FeedbackCard(message: String, rating: Int?) {
 
 @Composable
 fun OrderStatusCard(message: String, status: String?, eta: String?) {
+    android.util.Log.d("AssistantFlow", "🎬 Rendering OrderStatusCard: status=$status, eta=$eta")
     Card(
         modifier = Modifier
             .fillMaxWidth()

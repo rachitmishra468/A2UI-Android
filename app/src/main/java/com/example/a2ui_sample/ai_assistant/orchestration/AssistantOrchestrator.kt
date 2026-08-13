@@ -80,11 +80,14 @@ class AssistantOrchestrator @Inject constructor(
 
                       // Run the sub-agent as a separate short session
                       val subRunner = InMemoryRunner(subAgent)
+                      Log.d("AssistantFlow", "🤖 Calling Sub-Agent: $agentName")
                       val subEvents = subRunner.runAsync(
                           userId = "user-1",
                           sessionId = "session-1-sub-${System.currentTimeMillis()}",
                           newMessage = Content.fromText(Role.USER, agentQuery)
                       ).toList()
+
+                      Log.d("AssistantFlow", "✅ Sub-Agent $agentName returned ${subEvents.size} events")
 
                       // Map sub-agent events to UI states
                       subEvents.forEach { se ->
@@ -92,6 +95,7 @@ class AssistantOrchestrator @Inject constructor(
                           if (!isOrchestration && (se.functionResponses().isNotEmpty() || se.content != null)) {
                               val state = uiMapper.mapEventToUi(se)
                               val stateType = state.javaClass.simpleName
+                              Log.d("AssistantFlow", "🎨 Mapped sub-event to UI state: $stateType")
                               if (state is AssistantUiState.TextResponse) {
                                   if (state.text.isNotBlank()) uiStates.add(state)
                               } else if (!processedStateTypes.contains(stateType)) {
