@@ -63,7 +63,8 @@ class AssistantUiMapper @Inject constructor() {
                     val rawItem = data["item"]
                     val item = convertToSingleMenuItem(rawItem)
                     val qty = (data["quantity"] as? Number)?.toInt() ?: 1
-                    item?.let { AssistantUiState.CartUpdate(it, qty, text) } ?: AssistantUiState.TextResponse(text)
+                    val msg = data["message"] as? String ?: text
+                    item?.let { AssistantUiState.CartUpdate(it, qty, msg) } ?: AssistantUiState.TextResponse(msg)
                 }
                 "view_cart" -> {
                     // In some cases it might be data["result"]["items"]
@@ -76,6 +77,17 @@ class AssistantUiMapper @Inject constructor() {
                     val msg = innerData["message"] as? String ?: data["message"] as? String ?: text
                     Log.d("AssistantFlow", "Mapper: CartView result -> ${items.size} items, total: $total")
                     AssistantUiState.CartView(items, total, msg)
+                }
+                "checkout" -> {
+                    val rawItems = data["items"]
+                    val items = convertToCartItems(rawItems)
+                    val total = (data["total"] as? Number)?.toInt() ?: 0
+                    val msg = data["message"] as? String ?: text
+                    if (items.isNotEmpty()) {
+                        AssistantUiState.CheckoutSummary(items, total, msg)
+                    } else {
+                        AssistantUiState.TextResponse(msg)
+                    }
                 }
                 "remove_from_cart", "update_cart_quantity" -> {
                     val rawItem = data["item"]

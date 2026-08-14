@@ -50,6 +50,13 @@ class CartAgent @Inject constructor(
              User: add 2 Maharaja Chicken burgers
              Tool: add_to_cart(itemName="Maharaja Chicken", quantity=2)
              Response: "Added 2 Maharaja Chicken burgers to your cart!"
+
+             User: checkout
+             Tool: checkout()
+             Response: "Here is your order summary..."
+
+             User: reorder my last meal
+             Tool: transfer_to_agent(agent="OrderAssistant", query="reorder my last order")
         """
     }
 }

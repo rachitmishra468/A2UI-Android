@@ -98,7 +98,7 @@ class AssistantOrchestrator @Inject constructor(
                               Log.d("AssistantFlow", "🎨 Mapped sub-event to UI state: $stateType")
                               if (state is AssistantUiState.TextResponse) {
                                   if (state.text.isNotBlank()) uiStates.add(state)
-                              } else if (!processedStateTypes.contains(stateType)) {
+                              } else if (state is AssistantUiState.CartUpdate || !processedStateTypes.contains(stateType)) {
                                   uiStates.add(state)
                                   processedStateTypes.add(stateType)
                               }

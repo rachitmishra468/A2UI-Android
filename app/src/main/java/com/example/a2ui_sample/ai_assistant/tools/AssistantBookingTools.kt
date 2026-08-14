@@ -56,4 +56,25 @@ class AssistantBookingTools @Inject constructor(
             "- Table for ${it.partySize} (Status: ${it.status})"
         }
     }
+
+    @Tool(
+        name = "cancel_booking",
+        description = "Cancel an existing table reservation."
+    )
+    suspend fun cancelBooking(): Map<String, Any?> {
+        val bookings = reservationRepository.getUpcomingReservations(CustomerId("guest")).first()
+        return if (bookings.isNotEmpty()) {
+            val lastBooking = bookings.last()
+            reservationRepository.cancelReservation(lastBooking.id)
+            mapOf(
+                "message" to "Successfully cancelled your reservation for ${lastBooking.partySize} people.",
+                "success" to true
+            )
+        } else {
+            mapOf(
+                "message" to "You don't have any active reservations to cancel.",
+                "success" to false
+            )
+        }
+    }
 }

@@ -81,4 +81,18 @@ class AssistantMenuTools @Inject constructor(
         )
     }
 
+    @Tool(
+        name = "get_restaurant_info",
+        description = "Get information about the restaurant like location, contact, and hours."
+    )
+    fun getRestaurantInfo(): Map<String, Any?> {
+        return mapOf(
+            "name" to "Luxe Dining",
+            "location" to "123 Gourmet Street, Food City",
+            "hours" to "10:00 AM - 11:00 PM",
+            "phone" to "+1 234-567-890",
+            "message" to "We are located at 123 Gourmet Street and open until 11 PM today!"
+        )
+    }
+
 }

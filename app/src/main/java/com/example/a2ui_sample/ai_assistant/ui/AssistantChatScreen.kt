@@ -208,6 +208,9 @@ fun AssistantMessageBubble(message: AssistantChatMessage, viewModel: AssistantVi
             is AssistantUiState.OrderStatus -> {
                 OrderStatusCard(message = content.message, status = content.status, eta = content.eta)
             }
+            is AssistantUiState.CheckoutSummary -> {
+                CheckoutCard(items = content.items, total = content.total, message = content.message, viewModel = viewModel)
+            }
             is AssistantUiState.Error -> {
                 TextBubble(text = content.message, isFromUser = false, isError = true)
             }

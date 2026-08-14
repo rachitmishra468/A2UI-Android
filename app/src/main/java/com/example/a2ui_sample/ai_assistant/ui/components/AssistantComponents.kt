@@ -216,7 +216,8 @@ fun CartUpdateCard(item: MenuItem, quantity: Int, message: String) {
             )
             Spacer(modifier = Modifier.width(16.dp))
             Column {
-                Text(text = message, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+                val displayText = if (message.isBlank()) "Added ${item.name}" else message
+                Text(text = displayText, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
                 if (quantity > 0) {
                     Text(text = "Qty: $quantity", style = MaterialTheme.typography.bodySmall)
                 }
@@ -355,6 +356,72 @@ fun OrderStatusCard(message: String, status: String?, eta: String?) {
                 if (eta != null) {
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(text = "Estimated Arrival: $eta", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CheckoutCard(
+    items: List<com.example.a2ui_sample.domain.model.CartItem>,
+    total: Int,
+    message: String,
+    viewModel: AssistantViewModel
+) {
+    android.util.Log.d("AssistantFlow", "🎬 Rendering CheckoutCard with ${items.size} items, total: $total")
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(text = "🏁 Order Summary", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(text = message, style = MaterialTheme.typography.bodyLarge)
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            items.forEach { cartItem ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(text = "${cartItem.quantity} x ${cartItem.menuItem.name}", style = MaterialTheme.typography.bodyMedium)
+                    Text(text = "₹${cartItem.menuItem.price.amount * cartItem.quantity}", style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            HorizontalDivider()
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(text = "Total Amount", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(text = "₹$total", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+            }
+            
+            Spacer(modifier = Modifier.height(20.dp))
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = { viewModel.placeOrder(isCod = false) },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                ) {
+                    Text("💳 Payment")
+                }
+                OutlinedButton(
+                    onClick = { viewModel.placeOrder(isCod = true) },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("💵 COD")
                 }
             }
         }

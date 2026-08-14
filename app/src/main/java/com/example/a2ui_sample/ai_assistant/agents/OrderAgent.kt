@@ -40,8 +40,12 @@ class OrderAgent @Inject constructor(
              allowing the Master Orchestrator to handle any other pending requests."
              
             RULES (must follow exactly):
-            1) ALWAYS call a tool to retrieve order data.
+            1) ALWAYS call a tool to retrieve order data or perform a reorder.
             2) Once the tool returns results, explain the status or list the history clearly to the user.
+            
+            Example:
+             User: reorder last order
+             Tool: reorder_last_order()
         """
     }
 }

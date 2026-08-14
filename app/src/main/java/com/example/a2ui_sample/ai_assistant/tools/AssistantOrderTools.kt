@@ -12,7 +12,8 @@ import javax.inject.Singleton
 @Singleton
 class AssistantOrderTools @Inject constructor(
     private val orderRepository: OrderRepository,
-    private val deliveryRepository: DeliveryRepository
+    private val deliveryRepository: DeliveryRepository,
+    private val menuRepository: com.example.a2ui_sample.domain.repository.MenuRepository
 ) {
     @Tool(
         name = "track_order",
@@ -48,5 +49,31 @@ class AssistantOrderTools @Inject constructor(
         return "Order History:\n" + orders.joinToString("\n") { 
             "- Order ₹${it.totalAmount} (Status: ${it.status})"
         }
+    }
+
+    @Tool(
+        name = "reorder_last_order",
+        description = "Add all items from your most recent order back into the shopping cart."
+    )
+    suspend fun reorderLastOrder(): Map<String, Any?> {
+        val orders = orderRepository.getOrderHistory(CustomerId("guest"))
+        if (orders.isEmpty()) return mapOf("message" to "You have no previous orders to reorder.", "success" to false)
+        
+        val lastOrder = orders.first()
+        val itemsAdded = mutableListOf<String>()
+        
+        lastOrder.items.forEach { orderItem ->
+            menuRepository.addToCart(orderItem.menuItemId)
+            if (orderItem.quantity > 1) {
+                menuRepository.updateCartQuantity(orderItem.menuItemId, orderItem.quantity)
+            }
+            itemsAdded.add("${orderItem.quantity}x ${orderItem.menuItemName}")
+        }
+        
+        return mapOf(
+            "message" to "Successfully reordered items from your last order: ${itemsAdded.joinToString(", ")}.",
+            "success" to true,
+            "items" to itemsAdded
+        )
     }
 }

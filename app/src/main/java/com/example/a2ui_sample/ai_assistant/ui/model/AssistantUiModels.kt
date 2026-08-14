@@ -12,6 +12,11 @@ sealed class AssistantUiState {
     data class BookingResult(val message: String, val date: String? = null, val time: String? = null, val guests: Int? = null) : AssistantUiState()
     data class FeedbackResult(val message: String, val rating: Int? = null) : AssistantUiState()
     data class OrderStatus(val message: String, val status: String? = null, val eta: String? = null) : AssistantUiState()
+    data class CheckoutSummary(
+        val items: List<com.example.a2ui_sample.domain.model.CartItem>,
+        val total: Int,
+        val message: String
+    ) : AssistantUiState()
     data class Error(val message: String) : AssistantUiState()
     object Loading : AssistantUiState()
 }

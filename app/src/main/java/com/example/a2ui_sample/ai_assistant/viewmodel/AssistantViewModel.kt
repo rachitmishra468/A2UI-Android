@@ -135,6 +135,11 @@ class AssistantViewModel @Inject constructor(
                             rdr.setLenient(true)
                             gson.fromJson(rdr, AssistantUiState.OrderStatus::class.java)
                         }
+                        "CheckoutSummary" -> {
+                            val rdr = JsonReader(StringReader(dataJson))
+                            rdr.setLenient(true)
+                            gson.fromJson(rdr, AssistantUiState.CheckoutSummary::class.java)
+                        }
                         "Error" -> AssistantUiState.Error(fallbackText)
                         else -> AssistantUiState.TextResponse(fallbackText)
                     }
@@ -172,6 +177,7 @@ class AssistantViewModel @Inject constructor(
                 is AssistantUiState.BookingResult -> content.message
                 is AssistantUiState.FeedbackResult -> content.message
                 is AssistantUiState.OrderStatus -> content.message
+                is AssistantUiState.CheckoutSummary -> content.message
                 else -> "I've updated the view for you:"
             }
             
@@ -216,6 +222,31 @@ class AssistantViewModel @Inject constructor(
         viewModelScope.launch {
             chatMessageDao.clearHistoryByConversation(conversationId)
             // After clearing, the flow observer will re-trigger and add welcome message
+        }
+    }
+
+    fun placeOrder(isCod: Boolean) {
+        viewModelScope.launch {
+            val total = menuRepository.getCartTotal()
+            if (total == 0) return@launch
+            
+            Log.d("AssistantFlow", "🛒 Placing order: isCod=$isCod, total=$total")
+            
+            // Clear cart in repository
+            menuRepository.clearCart()
+            
+            // Show success message in chat
+            val msg = if (isCod) {
+                "Order placed successfully via COD! Your delicious meal is being prepared."
+            } else {
+                "Payment successful! Order placed. Your delicious meal is being prepared."
+            }
+            
+            val assistantMsg = AssistantChatMessage(
+                content = AssistantUiState.TextResponse(msg),
+                isFromUser = false
+            )
+            saveMessageToDb(assistantMsg)
         }
     }
 

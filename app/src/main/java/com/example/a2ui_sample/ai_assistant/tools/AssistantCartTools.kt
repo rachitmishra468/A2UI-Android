@@ -29,7 +29,15 @@ class AssistantCartTools @Inject constructor(
     )
     suspend fun addToCart(itemName: String, quantity: Int): Map<String, Any?> {
         val allItems = repository.getMenuItems()
-        val itemToAdd = allItems.find { it.name.contains(itemName, ignoreCase = true) }
+        
+        // Clean item name for better matching (remove common suffixes)
+        val cleanName = itemName.replace(" burger", "", ignoreCase = true)
+            .replace(" pizza", "", ignoreCase = true)
+            .replace(" fries", "", ignoreCase = true)
+            .trim()
+
+        val itemToAdd = allItems.find { it.name.contains(cleanName, ignoreCase = true) } 
+            ?: allItems.find { cleanName.contains(it.name, ignoreCase = true) }
 
         return if (itemToAdd != null) {
             val cartItems = repository.getCart()
@@ -112,5 +120,27 @@ class AssistantCartTools @Inject constructor(
     suspend fun clearCart(): Map<String, Any?> {
         repository.clearCart()
         return mapOf("message" to "Your cart has been cleared.", "success" to true)
+    }
+
+    @Tool(
+        name = "checkout",
+        description = "Start the checkout process and show order summary."
+    )
+    suspend fun checkout(): Map<String, Any?> {
+        val cartItems = repository.getCart()
+        val total = cartItems.sumOf { it.menuItem.price.amount * it.quantity }
+        return if (cartItems.isEmpty()) {
+            mapOf(
+                "message" to "Your cart is empty. Add some items before checking out!",
+                "success" to false
+            )
+        } else {
+            mapOf(
+                "items" to cartItems,
+                "total" to total,
+                "message" to "Here is your order summary. Please choose a payment method to complete your order.",
+                "success" to true
+            )
+        }
     }
 }
