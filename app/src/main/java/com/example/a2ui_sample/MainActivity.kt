@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import androidx.core.view.WindowCompat
 import com.example.a2ui_sample.presentation.components.AppNavigation
 import com.example.a2ui_sample.presentation.theme.A2UI_SampleTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -15,6 +16,11 @@ import dagger.hilt.android.AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // CRITICAL FIX: Handle system windows and insets properly
+        // This ensures keyboard insets are calculated correctly
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+
         setContent {
             A2UI_SampleTheme {
                 Surface(

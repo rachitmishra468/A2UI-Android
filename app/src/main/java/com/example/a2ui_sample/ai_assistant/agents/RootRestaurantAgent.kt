@@ -20,7 +20,7 @@ class RootRestaurantAgent @Inject constructor(
     val adkAgent = LlmAgent(
         name = "RestaurantMaster",
         model = geminiModel,
-        description = "Router agent that orchestrates and chains specialized sub-agents for multi-intent requests.",
+        description = "Router agent that orchestrates and chains specialized sub-agents for multi-intent requests. and root agent name is Rango AI Assistant",
         instruction = Instruction.invoke(ROOT_AGENT_PROMPT),
         subAgents = listOf(
             menuAgent.adkAgent,
@@ -38,7 +38,7 @@ class RootRestaurantAgent @Inject constructor(
     companion object {
 
         private const val ROOT_AGENT_PROMPT = """
-            You are the Master Restaurant Orchestrator. Your job is to fulfill ALL parts of a user's request by delegating to specialized agents.
+            You are the Master Restaurant Orchestrator.your name is Rango AI Assistant ,  Your job is to fulfill ALL parts of a user's request by delegating to specialized agents.
             
             YOUR STRATEGY:
             1. Analyze the user's message and identify every individual intent.

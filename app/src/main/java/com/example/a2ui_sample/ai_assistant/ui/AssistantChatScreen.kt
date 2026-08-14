@@ -4,6 +4,7 @@ import android.content.Intent
 import android.speech.RecognizerIntent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -56,10 +57,10 @@ fun AssistantChatScreen(
         }
     }
 
-    Scaffold(
+        Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("AI Assistant (ADK)") },
+                title = { Text("Rango AI Assistant") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -92,20 +93,22 @@ fun AssistantChatScreen(
                 )
             )
         }
+        // Let adjustResize handle IME padding - don't override with windowInsets
     ) { padding ->
         Column(
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
-                .imePadding()
+                .imePadding() // Let whole screen respond to keyboard - moves everything up
+                .animateContentSize() // Smooth when keyboard appears/disappears
         ) {
             LazyColumn(
                 state = listState,
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth(),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 items(messages) { message ->
                     AssistantMessageBubble(message, viewModel)
@@ -123,34 +126,50 @@ fun AssistantChatScreen(
                 }
             }
 
+            // KEY FIX: Surface at bottom - Column's imePadding handles keyboard response
+            // No need for Surface imePadding since Column handles it
             Surface(
-                tonalElevation = 2.dp,
-                modifier = Modifier.fillMaxWidth()
+                tonalElevation = 4.dp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .animateContentSize(), // Smooth animation
+                color = MaterialTheme.colorScheme.surface
             ) {
                 Row(
                     modifier = Modifier
-                        .padding(8.dp)
+                        .padding(horizontal = 10.dp, vertical = 8.dp)
                         .fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    IconButton(onClick = {
-                        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                            putExtra(RecognizerIntent.EXTRA_PROMPT, "How can I help?")
-                        }
-                        voiceLauncher.launch(intent)
-                    }) {
+                    IconButton(
+                        onClick = {
+                            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                                putExtra(RecognizerIntent.EXTRA_PROMPT, "How can I help?")
+                            }
+                            voiceLauncher.launch(intent)
+                        },
+                        modifier = Modifier.size(40.dp)
+                    ) {
                         Icon(Icons.Default.Mic, contentDescription = "Voice Input")
                     }
 
                     TextField(
                         value = textState,
                         onValueChange = { textState = it },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 40.dp, max = 100.dp),
                         placeholder = { Text("Ask Menu Assistant...") },
+                        singleLine = false,
+                        maxLines = 3,
+                        shape = RoundedCornerShape(20.dp),
                         colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent
                         )
                     )
 
@@ -161,7 +180,8 @@ fun AssistantChatScreen(
                                 textState = ""
                             }
                         },
-                        enabled = textState.isNotBlank()
+                        enabled = textState.isNotBlank(),
+                        modifier = Modifier.size(40.dp)
                     ) {
                         Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
                     }
