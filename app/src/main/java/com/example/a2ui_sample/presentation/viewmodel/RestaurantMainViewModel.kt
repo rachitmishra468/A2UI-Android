@@ -530,6 +530,17 @@ class RestaurantMainViewModel @Inject constructor(
         addMessage(UiMessage(text = "Chat cleared. How can I help you now?", isFromUser = false))
     }
 
+    fun deleteBooking(reservationId: ReservationId) {
+        viewModelScope.launch {
+            try {
+                reservationRepository.deleteReservation(reservationId)
+                Log.d("A2UI_FLOW", "🗑️ Booking deleted: ${reservationId.value}")
+            } catch (e: Exception) {
+                Log.e("A2UI_FLOW", "Error deleting booking: ${e.message}", e)
+            }
+        }
+    }
+
     private fun splitA2UICommand(json: String): List<String> {
         return try {
             val lines = json.trim().split("\n").filter { it.isNotBlank() }

@@ -53,7 +53,7 @@ fun BookingHistoryScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 items(sortedBookings, key = { it.id.value }) { booking ->
-                    BookingCard(booking)
+                    BookingCard(booking, viewModel)
                 }
             }
         }
@@ -61,7 +61,8 @@ fun BookingHistoryScreen(
 }
 
 @Composable
-fun BookingCard(booking: Reservation) {
+fun BookingCard(booking: Reservation, viewModel: RestaurantMainViewModel? = null) {
+    var showDeleteDialog by remember { mutableStateOf(false) }
     val statusColor = getBookingStatusColor(booking.status.name)
     
     Card(
@@ -120,7 +121,55 @@ fun BookingCard(booking: Reservation) {
                 val createdSdf = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.US)
                 Text("Booked on: ${createdSdf.format(java.util.Date(booking.createdAt))}", fontSize = 10.sp, color = Color.Gray)
             }
+
+            // Delete Button Row
+            Spacer(modifier = Modifier.height(12.dp))
+            Button(
+                onClick = { showDeleteDialog = true },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(36.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFF44336), // Red
+                    contentColor = Color.White
+                ),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Icon(Icons.Default.Delete, contentDescription = "Delete", modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Delete Booking", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+            }
         }
+    }
+
+    // Confirmation Dialog
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete Booking?", fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    "Are you sure you want to delete this booking? This action cannot be undone.\n\n" +
+                    "Booking ID: ${booking.id.value.take(8).uppercase()}"
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel?.deleteBooking(booking.id)
+                        showDeleteDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF44336))
+                ) {
+                    Text("Delete", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 

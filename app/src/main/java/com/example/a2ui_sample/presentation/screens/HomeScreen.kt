@@ -46,7 +46,7 @@ fun HomeScreen(
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = Color.White,
                 icon = { Icon(Icons.Default.AutoAwesome, contentDescription = null) },
-                text = { Text("Ask AI Assistant") }
+                text = { Text("Intent AI Assistant") }
             )
         }
     ) { padding ->
@@ -65,7 +65,7 @@ fun HomeScreen(
 
             // 3. Featured Items (A2UI)
             Column(modifier = Modifier.padding(16.dp)) {
-                Text("Chef's Specials 👨‍🍳", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Text("Rango Specials 👨‍🍳", fontSize = 20.sp, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(12.dp))
                 MenuA2UISection(viewModel)
             }
@@ -106,7 +106,7 @@ fun HeroBanner() {
                 .padding(20.dp)
         ) {
             Text(
-                "Luxe Dining",
+                "Rango Dining",
                 color = Color.White,
                 fontSize = 32.sp,
                 fontWeight = FontWeight.ExtraBold

@@ -16,4 +16,5 @@ interface ReservationRepository {
     fun getUpcomingReservations(customerId: CustomerId): Flow<List<Reservation>>
     suspend fun cancelReservation(id: ReservationId)
     suspend fun updateReservationStatus(id: ReservationId, status: ReservationStatus)
+    suspend fun deleteReservation(id: ReservationId)
 }

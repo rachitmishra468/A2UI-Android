@@ -26,6 +26,9 @@ interface BookingDao {
 
     @Query("SELECT * FROM table_bookings WHERE bookingId = :bookingId")
     suspend fun getBookingById(bookingId: String): TableBookingEntity?
+
+    @Query("DELETE FROM table_bookings WHERE bookingId = :bookingId")
+    suspend fun deleteBooking(bookingId: String)
 }
 
 @Dao

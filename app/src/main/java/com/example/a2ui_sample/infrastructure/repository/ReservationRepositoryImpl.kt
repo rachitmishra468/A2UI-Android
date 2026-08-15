@@ -61,6 +61,10 @@ class ReservationRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun deleteReservation(id: ReservationId) {
+        bookingDao.deleteBooking(id.value)
+    }
+
     private fun mapToDomain(entity: TableBookingEntity): Reservation {
         // Mocking timeslot back from date/time strings for simplicity in this demo
         val sdf = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.US)

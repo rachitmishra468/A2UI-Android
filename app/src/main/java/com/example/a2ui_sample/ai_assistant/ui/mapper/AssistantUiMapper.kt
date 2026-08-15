@@ -107,6 +107,16 @@ class AssistantUiMapper @Inject constructor() {
                     val guests = (data["guests"] as? Number)?.toInt()
                     AssistantUiState.BookingResult(msg, date, time, guests)
                 }
+                "list_bookings" -> {
+                    val msg = data["message"] as? String ?: text
+                    // For POC, we'll map the list to a TextResponse if it's just info
+                    // or we could add a BookingList state. For now, let's use the message.
+                    AssistantUiState.TextResponse(msg)
+                }
+                "cancel_booking" -> {
+                    val msg = data["message"] as? String ?: text
+                    AssistantUiState.TextResponse(msg)
+                }
                 "submit_feedback" -> {
                     val msg = data["message"] as? String ?: text
                     val rating = (data["rating"] as? Number)?.toInt()

@@ -2,14 +2,20 @@ package com.example.a2ui_sample.ai_assistant.ui
 
 import android.content.Intent
 import android.speech.RecognizerIntent
+import android.os.Vibrator
+import android.content.Context
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
@@ -38,15 +44,20 @@ fun AssistantChatScreen(
     val messages = viewModel.messages
     val listState = rememberLazyListState()
     var textState by remember { mutableStateOf("") }
+    var isRecording by remember { mutableStateOf(false) }
     val totalCartQuantity = viewModel.cartItems.sumOf { it.quantity }
 
     val voiceLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
+        isRecording = false
         if (result.resultCode == android.app.Activity.RESULT_OK) {
             val spokenText = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.getOrNull(0)
             if (!spokenText.isNullOrEmpty()) {
                 textState = spokenText
+                // Auto-send like Gemini - no manual click needed
+                viewModel.sendMessage(spokenText)
+                textState = ""
             }
         }
     }
@@ -142,17 +153,46 @@ fun AssistantChatScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    IconButton(
-                        onClick = {
-                            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                                putExtra(RecognizerIntent.EXTRA_PROMPT, "How can I help?")
-                            }
-                            voiceLauncher.launch(intent)
-                        },
-                        modifier = Modifier.size(40.dp)
+                    // Animated Mic Button with Pulse Effect
+                    Box(
+                        modifier = Modifier.size(40.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Default.Mic, contentDescription = "Voice Input")
+                        // Pulse animation when recording
+                        if (isRecording) {
+                            val scale = animateFloatAsState(
+                                targetValue = 1.3f,
+                                animationSpec = infiniteRepeatable(
+                                    animation = tween(600)
+                                ),
+                                label = "pulse"
+                            ).value
+
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.error.copy(alpha = 0.3f),
+                                modifier = Modifier
+                                    .size(40.dp * scale)
+                            ) {}
+                        }
+
+                        IconButton(
+                            onClick = {
+                                isRecording = true
+                                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                                    putExtra(RecognizerIntent.EXTRA_PROMPT, "How can I help?")
+                                }
+                                voiceLauncher.launch(intent)
+                            },
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Mic,
+                                contentDescription = "Voice Input",
+                                tint = if (isRecording) MaterialTheme.colorScheme.error else LocalContentColor.current
+                            )
+                        }
                     }
 
                     TextField(

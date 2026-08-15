@@ -47,32 +47,44 @@ class AssistantBookingTools @Inject constructor(
 
     @Tool(
         name = "list_bookings",
-        description = "View your current table reservations."
+        description = "View your current table reservations with their IDs and times."
     )
-    suspend fun listBookings(): String {
+    suspend fun listBookings(): Map<String, Any?> {
         val bookings = reservationRepository.getUpcomingReservations(CustomerId("guest")).first()
-        if (bookings.isEmpty()) return "You have no active bookings."
-        return "Your Bookings:\n" + bookings.joinToString("\n") { 
-            "- Table for ${it.partySize} (Status: ${it.status})"
+        return if (bookings.isEmpty()) {
+            mapOf("message" to "You have no active bookings.", "bookings" to emptyList<Reservation>())
+        } else {
+            val sdf = java.text.SimpleDateFormat("HH:mm", java.util.Locale.US)
+            val bookingList = bookings.map { 
+                mapOf(
+                    "id" to it.id.value,
+                    "time" to sdf.format(java.util.Date(it.timeSlot.startMillis)),
+                    "guests" to it.partySize,
+                    "status" to it.status.name
+                )
+            }
+            mapOf(
+                "message" to "Found ${bookings.size} bookings.",
+                "bookings" to bookingList
+            )
         }
     }
 
     @Tool(
         name = "cancel_booking",
-        description = "Cancel an existing table reservation."
+        description = "Cancel a specific table reservation by its booking ID."
     )
-    suspend fun cancelBooking(): Map<String, Any?> {
-        val bookings = reservationRepository.getUpcomingReservations(CustomerId("guest")).first()
-        return if (bookings.isNotEmpty()) {
-            val lastBooking = bookings.last()
-            reservationRepository.cancelReservation(lastBooking.id)
+    suspend fun cancelBooking(bookingId: String): Map<String, Any?> {
+        return try {
+            reservationRepository.cancelReservation(ReservationId(bookingId))
             mapOf(
-                "message" to "Successfully cancelled your reservation for ${lastBooking.partySize} people.",
-                "success" to true
+                "message" to "Successfully cancelled reservation $bookingId.",
+                "success" to true,
+                "bookingId" to bookingId
             )
-        } else {
+        } catch (e: Exception) {
             mapOf(
-                "message" to "You don't have any active reservations to cancel.",
+                "message" to "Failed to cancel reservation: ${e.message}",
                 "success" to false
             )
         }
