@@ -2,6 +2,7 @@ package com.example.a2ui_sample.ai_assistant.agents
 
 import com.example.a2ui_sample.BuildConfig
 import com.example.a2ui_sample.ai_assistant.tools.AssistantCartTools
+import com.example.a2ui_sample.ai_assistant.tools.CouponTools
 import com.example.a2ui_sample.ai_assistant.tools.generatedTools
 import com.google.adk.kt.agents.Instruction
 import com.google.adk.kt.agents.InvocationContext
@@ -17,16 +18,17 @@ import javax.inject.Singleton
 
 @Singleton
 class CartAgent @Inject constructor(
-    private val cartTools: AssistantCartTools
+    private val cartTools: AssistantCartTools,
+    private val couponTools: CouponTools
 ) {
     private val apiKey = BuildConfig.GEMINI_API_KEY
     private val geminiModel = Gemini("gemini-3.1-flash-lite", apiKey)
 
     val adkAgent = LlmAgent(
         name = "CartAssistant",
-        description = "Handles all shopping cart operations including adding items, removing items, updating quantities, viewing the cart, and checkout.",
+        description = "Handles all shopping cart operations including adding items, removing items, updating quantities, viewing the cart, applying coupons, and checkout.",
         model = geminiModel,
-        tools = cartTools.generatedTools(),
+        tools = cartTools.generatedTools() + couponTools.generatedTools(),
         instruction = Instruction.invoke(CART_PROMPT),
         maxSteps = 1
     )
@@ -35,7 +37,11 @@ class CartAgent @Inject constructor(
 
     companion object {
         private const val CART_PROMPT = """
-            You are the Cart Specialist. Your job is to manage the user's shopping cart.
+            You are the Cart Specialist. Your job is to manage the user's shopping cart and handle coupon/discount requests.
+            
+            CAPABILITIES:
+            - Cart Operations: Add items, remove items, update quantities, view cart, checkout
+            - Coupon Operations: Show available coupons, validate coupon codes, apply discounts
             
             CRITICAL RULES:
             1. ALWAYS call a tool for any modification or view request.
@@ -44,19 +50,31 @@ class CartAgent @Inject constructor(
             4. Do NOT try to do anything else after the tool returns.
             5. The Master Orchestrator will handle any other requests from the user.
             
-            Your only job: Execute the cart operation using your tool and return the result.
+            COUPON HANDLING:
+            - If user asks "Do you have any coupons?" → Use get_available_coupons tool
+            - If user provides a coupon code → Use validate_coupon tool first, then apply_coupon
+            - Show discount details in human-readable format
+            - If coupon is invalid, explain why (expired, minimum amount not met, etc.)
+            
+            Your only job: Execute the cart/coupon operation using your tools and return the result.
             
             Examples:
-             User: add 2 Maharaja Chicken burgers
-             Tool: add_to_cart(itemName="Maharaja Chicken", quantity=2)
-             Response: "Added 2 Maharaja Chicken burgers to your cart!"
+             User: add 2 Margherita pizzas
+             Tool: add_to_cart(itemName="Margherita", quantity=2)
+             Response: "Added 2 Margherita pizzas to your cart!"
+
+             User: Do you have coupons?
+             Tool: get_available_coupons()
+             Response: [Show available coupons with codes and discounts]
+
+             User: Apply WELCOME30
+             Tool: validate_coupon(coupon_code="WELCOME30")
+             Tool: apply_coupon(coupon_code="WELCOME30", order_amount=...)
+             Response: "Great! Coupon WELCOME30 applied. You save ₹250!"
 
              User: checkout
              Tool: checkout()
              Response: "Here is your order summary..."
-
-             User: reorder my last meal
-             Tool: transfer_to_agent(agent="OrderAssistant", query="reorder my last order")
         """
     }
 }

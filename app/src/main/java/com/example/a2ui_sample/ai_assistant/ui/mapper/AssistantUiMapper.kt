@@ -128,11 +128,65 @@ class AssistantUiMapper @Inject constructor() {
                     val eta = data["eta"] as? String
                     AssistantUiState.OrderStatus(msg, status, eta)
                 }
-                else -> AssistantUiState.TextResponse(text)
+                "get_available_coupons" -> {
+                    val innerData = (data["result"] as? Map<*, *>) ?: data
+                    val msg = innerData["message"] as? String ?: data["message"] as? String ?: text
+                    val couponList = innerData["coupons"] as? List<*> ?: data["coupons"] as? List<*> ?: emptyList<Any?>()
+
+                    if (couponList.isEmpty()) {
+                        AssistantUiState.TextResponse(msg.ifBlank { "No active coupons available right now." })
+                    } else {
+                        AssistantUiState.TextResponse(buildCouponSummary(couponList, msg))
+                    }
+                }
+                "validate_coupon" -> {
+                    val msg = data["message"] as? String ?: text
+                    AssistantUiState.TextResponse(msg.ifBlank { "Coupon validation result is unavailable." })
+                }
+                "apply_coupon" -> {
+                    val msg = data["message"] as? String ?: text
+                    AssistantUiState.TextResponse(msg.ifBlank { "Coupon was not applied." })
+                }
+                else -> {
+                    if (text.isBlank() || text == "I processed your request.") {
+                        val fallback = data["message"] as? String ?: ""
+                        if (fallback.isNotBlank() && fallback != "I processed your request.") {
+                            AssistantUiState.TextResponse(fallback)
+                        } else {
+                            // If everything is blank or generic, return blank to avoid double bubbles
+                            AssistantUiState.TextResponse("")
+                        }
+                    } else {
+                        AssistantUiState.TextResponse(text)
+                    }
+                }
             }
         }
 
+        if (text.isBlank() || text == "I processed your request.") {
+            val fallback = event.functionResponses().firstOrNull()?.response?.get("message") as? String ?: ""
+            return AssistantUiState.TextResponse(if (fallback == "I processed your request.") "" else fallback)
+        }
+
         return AssistantUiState.TextResponse(text)
+    }
+
+    private fun buildCouponSummary(coupons: List<*>, fallbackMessage: String): String {
+        val items = coupons.mapNotNull { coupon ->
+            val map = coupon as? Map<*, *> ?: return@mapNotNull null
+            val code = map["code"] as? String ?: return@mapNotNull null
+            val desc = map["description"] as? String ?: ""
+            val percent = map["discount_percentage"] as? Number ?: return@mapNotNull null
+            val minOrder = map["min_order_amount"] as? Number
+            val suffix = minOrder?.let { " • Min order ₹${it.toDouble()}" } ?: ""
+            "• $code: ${percent.toInt()}% off$suffix${if (desc.isNotBlank()) " • $desc" else ""}"
+        }
+
+        return if (items.isNotEmpty()) {
+            "${fallbackMessage.ifBlank { "Here are the available coupons." }}\n${items.joinToString("\n")}"
+        } else {
+            fallbackMessage.ifBlank { "No active coupons available right now." }
+        }
     }
 
     private fun convertToMenuItems(data: Any?): List<MenuItem> {

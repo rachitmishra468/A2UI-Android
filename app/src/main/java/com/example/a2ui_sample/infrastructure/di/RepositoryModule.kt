@@ -5,11 +5,13 @@ import com.example.a2ui_sample.domain.repository.FeedbackRepository
 import com.example.a2ui_sample.domain.repository.MenuRepository
 import com.example.a2ui_sample.domain.repository.OrderRepository
 import com.example.a2ui_sample.domain.repository.ReservationRepository
+import com.example.a2ui_sample.domain.repository.CouponRepository
 import com.example.a2ui_sample.infrastructure.repository.DeliveryRepositoryImpl
 import com.example.a2ui_sample.infrastructure.repository.FeedbackRepositoryImpl
 import com.example.a2ui_sample.infrastructure.repository.MenuRepositoryImpl
 import com.example.a2ui_sample.infrastructure.repository.OrderRepositoryImpl
 import com.example.a2ui_sample.infrastructure.repository.ReservationRepositoryImpl
+import com.example.a2ui_sample.infrastructure.repository.CouponRepositoryImpl
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -49,4 +51,10 @@ abstract class RepositoryModule {
     abstract fun bindFeedbackRepository(
         feedbackRepositoryImpl: FeedbackRepositoryImpl
     ): FeedbackRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindCouponRepository(
+        couponRepositoryImpl: CouponRepositoryImpl
+    ): CouponRepository
 }

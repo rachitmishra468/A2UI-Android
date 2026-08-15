@@ -93,3 +93,16 @@ data class CustomerId(
     override fun toString(): String = "CUST-${value.take(6).uppercase()}"
 }
 
+/**
+ * CouponId - Value Object for Coupon Identity
+ */
+data class CouponId(
+    val value: String = UUID.randomUUID().toString()
+) {
+    init {
+        require(value.isNotBlank()) { "CouponId cannot be blank" }
+    }
+
+    override fun toString(): String = "CPO-${value.take(6).uppercase()}"
+}
+
