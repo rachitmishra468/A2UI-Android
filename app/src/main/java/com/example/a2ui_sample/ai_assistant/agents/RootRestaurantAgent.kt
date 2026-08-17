@@ -13,7 +13,8 @@ class RootRestaurantAgent @Inject constructor(
     private val cartAgent: CartAgent,
     private val bookingAgent: BookingAgent,
     private val orderAgent: OrderAgent,
-    private val feedbackAgent: FeedbackAgent
+    private val feedbackAgent: FeedbackAgent,
+    private val knowledgeAgent: KnowledgeAgent
 ) {
     private val apiKey = BuildConfig.GEMINI_API_KEY
     private val geminiModel = Gemini("gemini-3.1-flash-lite", apiKey)
@@ -27,7 +28,8 @@ class RootRestaurantAgent @Inject constructor(
             cartAgent.adkAgent,
             bookingAgent.adkAgent,
             orderAgent.adkAgent,
-            feedbackAgent.adkAgent
+            feedbackAgent.adkAgent,
+            knowledgeAgent.adkAgent
         ),
         // Allow multiple delegation steps so the Root agent can sequentially call
         // multiple specialists for multi-intent user requests (e.g., "book a table and show my cart").
@@ -65,6 +67,7 @@ class RootRestaurantAgent @Inject constructor(
             
             CHECKOUT/ORDERS:
             - After order: "Excellent! Your order is confirmed (ID: [ORDER_ID]). It'll be ready in [TIME]. 🎉"
+            - Cancellation: "Got it. Your order [ORDER_ID] has been cancelled as requested. ❌"
             - With delivery: "Your order is on the way! Estimated delivery: [ETA]. Track it here! 📍"
             
             ORDER TRACKING:
@@ -92,8 +95,9 @@ class RootRestaurantAgent @Inject constructor(
             - Booking/Table -> BookingAssistant
             - Cart/Add/Remove/View -> CartAssistant
             - Menu/Search/Details -> MenuAssistant
-            - Orders/Tracking -> OrderAssistant
+            - Orders/Tracking/Cancellation -> OrderAssistant
             - Feedback -> FeedbackAssistant
+            - Policies/Delivery/Payments/Restaurant Info -> KnowledgeAssistant
         """
     }
 
@@ -104,6 +108,7 @@ class RootRestaurantAgent @Inject constructor(
         "BookingAssistant" -> bookingAgent.adkAgent
         "OrderAssistant" -> orderAgent.adkAgent
         "FeedbackAssistant" -> feedbackAgent.adkAgent
+        "KnowledgeAssistant" -> knowledgeAgent.adkAgent
         else -> null
     }
 }

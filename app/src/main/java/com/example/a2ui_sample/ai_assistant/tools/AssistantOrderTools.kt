@@ -19,12 +19,16 @@ class AssistantOrderTools @Inject constructor(
         name = "track_order",
         description = "Track the status of an order."
     )
-    suspend fun trackOrder(orderId: String?): Map<String, Any?> {
-        val id = if (orderId != null) OrderId(orderId) else {
+    suspend fun trackOrder(orderId: String? = null): Map<String, Any?> {
+        val id = if (!orderId.isNullOrBlank()) {
+            // Remove non-digit characters if model passed something like "ORD-123"
+            val cleanId = orderId.replace(Regex("[^0-9]"), "")
+            if (cleanId.isEmpty()) null else OrderId(cleanId)
+        } else {
             orderRepository.getAllOrders().first().firstOrNull()?.id
         } ?: return mapOf("message" to "No orders found to track.")
 
-        val order = orderRepository.getOrderById(id) ?: return mapOf("message" to "Order not found.")
+        val order = orderRepository.getOrderById(id) ?: return mapOf("message" to "Order with ID ${id.value} not found.")
         val delivery = deliveryRepository.getDeliveryByOrderId(id)
         
         val eta = delivery?.estimatedArrivalAt?.let {
@@ -37,6 +41,28 @@ class AssistantOrderTools @Inject constructor(
             "deliveryStatus" to (delivery?.status?.name ?: "UNKNOWN"),
             "eta" to eta
         )
+    }
+
+    @Tool(
+        name = "cancel_order",
+        description = "Cancel an existing order by its ID."
+    )
+    suspend fun cancelOrder(orderId: String): Map<String, Any?> {
+        val cleanId = orderId.replace(Regex("[^0-9]"), "")
+        if (cleanId.isEmpty()) return mapOf("message" to "Invalid Order ID provided.", "success" to false)
+        
+        val id = OrderId(cleanId)
+        val order = orderRepository.getOrderById(id) ?: return mapOf("message" to "Order $orderId not found.", "success" to false)
+        
+        return if (order.status == com.example.a2ui_sample.domain.valueobjects.OrderStatus.CANCELLED) {
+            mapOf("message" to "Order ${id.value} is already cancelled.", "success" to true)
+        } else if (order.status == com.example.a2ui_sample.domain.valueobjects.OrderStatus.DELIVERED || 
+                   order.status == com.example.a2ui_sample.domain.valueobjects.OrderStatus.COMPLETED) {
+            mapOf("message" to "Order ${id.value} cannot be cancelled as it is already ${order.status.name.lowercase()}.", "success" to false)
+        } else {
+            orderRepository.updateOrderStatus(id, com.example.a2ui_sample.domain.valueobjects.OrderStatus.CANCELLED)
+            mapOf("message" to "Successfully cancelled your order ${id.value}.", "success" to true)
+        }
     }
 
     @Tool(

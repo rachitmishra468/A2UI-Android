@@ -45,12 +45,36 @@ class AssistantMenuTools @Inject constructor(
 
     @Tool(
         name = "get_menu_details",
-        description = "Get detailed information about a specific menu item by its name."
+        description = "Get detailed information about a specific menu item by its name. Be sure to specify 'veg' or 'non-veg' if applicable."
     )
     fun getMenuDetails(itemName: String): Map<String, Any?> {
-        val item = repository.getMenuItems().find { 
-            it.name.contains(itemName, ignoreCase = true) 
+        val allItems = repository.getMenuItems()
+        val cleanedInput = itemName.lowercase().trim()
+        
+        // 1. Try exact match
+        var item = allItems.find { it.name.lowercase() == cleanedInput }
+        
+        // 2. If not found, and input specifies veg/non-veg, filter first
+        if (item == null) {
+            val isVegRequested = cleanedInput.contains("veg") && !cleanedInput.contains("non")
+            val isNonVegRequested = cleanedInput.contains("non-veg") || cleanedInput.contains("non veg")
+            
+            val candidates = allItems.filter { it.name.contains(cleanedInput.replace("veg", "").replace("non-", "").replace("non", "").trim(), ignoreCase = true) }
+            
+            item = if (isVegRequested) {
+                candidates.find { it.name.lowercase().contains("veg") && !it.name.lowercase().contains("non") }
+            } else if (isNonVegRequested) {
+                candidates.find { it.name.lowercase().contains("non-veg") || it.name.lowercase().contains("non veg") }
+            } else {
+                candidates.firstOrNull()
+            }
         }
+        
+        // 3. Last resort: basic contains
+        if (item == null) {
+            item = allItems.find { it.name.contains(itemName, ignoreCase = true) }
+        }
+
         return mapOf(
             "result" to item,
             "message" to (item?.let { "Found details for ${it.name}" } ?: "Item not found: $itemName")

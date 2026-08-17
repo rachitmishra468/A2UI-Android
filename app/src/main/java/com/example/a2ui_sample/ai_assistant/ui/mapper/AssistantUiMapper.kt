@@ -126,7 +126,17 @@ class AssistantUiMapper @Inject constructor() {
                     val msg = data["message"] as? String ?: text
                     val status = data["deliveryStatus"] as? String ?: data["orderStatus"] as? String
                     val eta = data["eta"] as? String
-                    AssistantUiState.OrderStatus(msg, status, eta)
+                    
+                    if (status == null && eta == null) {
+                        // If no tracking info found, just show the message as text
+                        AssistantUiState.TextResponse(msg)
+                    } else {
+                        AssistantUiState.OrderStatus(msg, status, eta)
+                    }
+                }
+                "cancel_order" -> {
+                    val msg = data["message"] as? String ?: text
+                    AssistantUiState.TextResponse(msg)
                 }
                 "get_available_coupons" -> {
                     val innerData = (data["result"] as? Map<*, *>) ?: data
