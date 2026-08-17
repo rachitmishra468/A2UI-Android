@@ -4,10 +4,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,6 +24,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.a2ui_sample.domain.model.CartItem
 import com.example.a2ui_sample.presentation.viewmodel.RestaurantMainViewModel
+import com.example.a2ui_sample.presentation.theme.PremiumColors
+import com.example.a2ui_sample.presentation.components.PremiumCard
+import com.example.a2ui_sample.presentation.components.PremiumButton
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,12 +37,15 @@ fun CartScreen(
     viewModel: RestaurantMainViewModel = hiltViewModel()
 ) {
     val cartItems by viewModel.cartItems.collectAsState()
-    val total = cartItems.sumOf { it.menuItem.price.amount * it.quantity }
+    val subtotal = cartItems.sumOf { it.menuItem.price.amount * it.quantity }
+    val tax = (subtotal * 0.05).toInt()
+    val delivery = if (subtotal > 0) 40 else 0
+    val total = subtotal + tax + delivery
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("My Cart") },
+                title = { Text("Checkout", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -45,39 +53,56 @@ fun CartScreen(
                 },
                 actions = {
                     IconButton(onClick = onNavigateToOrderHistory) {
-                        Icon(Icons.Default.History, contentDescription = "Order History")
+                        Icon(Icons.Outlined.History, contentDescription = "Order History")
                     }
                 }
             )
         },
         bottomBar = {
             if (cartItems.isNotEmpty()) {
-                CartBottomBar(total, onCheckout)
+                PremiumCartBottomBar(total, onCheckout)
             }
         }
     ) { padding ->
-        if (cartItems.isEmpty()) {
-            EmptyCartView(onBack)
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .padding(padding)
-                    .fillMaxSize()
-                    .background(Color(0xFFF8F8F8)),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                items(cartItems) { item ->
-                    CartItemRow(
-                        item = item,
-                        onIncrease = { viewModel.updateCartQuantity(item.menuItem.id, item.quantity + 1) },
-                        onDecrease = { viewModel.updateCartQuantity(item.menuItem.id, item.quantity - 1) },
-                        onRemove = { viewModel.removeFromCart(item.menuItem.id) }
-                    )
-                }
+        Column(
+            modifier = Modifier
+                .padding(padding)
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+        ) {
+            if (cartItems.isEmpty()) {
+                PremiumEmptyCartView(onBack)
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    item {
+                        Text(
+                            "Order Summary",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                    }
 
-                item {
-                    OrderSummary(total)
+                    items(cartItems) { item ->
+                        PremiumCartItemRow(
+                            item = item,
+                            onIncrease = { viewModel.updateCartQuantity(item.menuItem.id, item.quantity + 1) },
+                            onDecrease = { viewModel.updateCartQuantity(item.menuItem.id, item.quantity - 1) },
+                            onRemove = { viewModel.removeFromCart(item.menuItem.id) }
+                        )
+                    }
+
+                    item {
+                        PremiumOrderDetails(subtotal, tax, delivery, total)
+                    }
+
+                    item {
+                        Spacer(modifier = Modifier.height(100.dp))
+                    }
                 }
             }
         }
@@ -85,116 +110,141 @@ fun CartScreen(
 }
 
 @Composable
-fun EmptyCartView(onBack: () -> Unit) {
+fun PremiumEmptyCartView(onBack: () -> Unit) {
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().padding(32.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(Icons.Default.ShoppingCart, contentDescription = null, modifier = Modifier.size(100.dp), tint = Color.LightGray)
-        Spacer(modifier = Modifier.height(16.dp))
-        Text("Your cart is empty", fontSize = 20.sp, color = Color.Gray)
-        Spacer(modifier = Modifier.height(24.dp))
-        Button(onClick = onBack) {
-            Text("Browse Menu")
+        Surface(
+            modifier = Modifier.size(120.dp),
+            shape = CircleShape,
+            color = PremiumColors.Gray100
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(Icons.Outlined.ShoppingCart, contentDescription = null, modifier = Modifier.size(48.dp), tint = PremiumColors.Gray400)
+            }
         }
+        Spacer(modifier = Modifier.height(24.dp))
+        Text("Your cart is empty", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            "Looks like you haven't added anything to your cart yet.",
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            color = PremiumColors.Gray500
+        )
+        Spacer(modifier = Modifier.height(32.dp))
+        PremiumButton(text = "Start Ordering", onClick = onBack, modifier = Modifier.fillMaxWidth())
     }
 }
 
 @Composable
-fun CartItemRow(
+fun PremiumCartItemRow(
     item: CartItem,
     onIncrease: () -> Unit,
     onDecrease: () -> Unit,
     onRemove: () -> Unit
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
-    ) {
+    PremiumCard(modifier = Modifier.fillMaxWidth()) {
         Row(
-            modifier = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
         ) {
             AsyncImage(
                 model = item.menuItem.imageUrl,
                 contentDescription = null,
                 modifier = Modifier
-                    .size(70.dp)
+                    .size(80.dp)
                     .clip(RoundedCornerShape(12.dp)),
                 contentScale = ContentScale.Crop
             )
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(item.menuItem.name, fontWeight = FontWeight.Bold)
-                Text("₹${item.menuItem.price.amount}", color = Color.Gray)
+                Text(item.menuItem.name, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text("₹${item.menuItem.price.amount}", color = PremiumColors.Gray500, fontSize = 14.sp)
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .background(PremiumColors.Gray100, RoundedCornerShape(8.dp))
+                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                ) {
+                    IconButton(onClick = onDecrease, modifier = Modifier.size(24.dp)) { 
+                        Icon(Icons.Default.Remove, contentDescription = null, modifier = Modifier.size(16.dp)) 
+                    }
+                    Text(
+                        item.quantity.toString(), 
+                        modifier = Modifier.padding(horizontal = 12.dp),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
+                    IconButton(onClick = onIncrease, modifier = Modifier.size(24.dp)) { 
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp)) 
+                    }
+                }
             }
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onDecrease) { Icon(Icons.Default.Remove, contentDescription = "Decrease") }
-                Text(item.quantity.toString(), fontWeight = FontWeight.Bold)
-                IconButton(onClick = onIncrease) { Icon(Icons.Default.Add, contentDescription = "Increase") }
-                IconButton(onClick = onRemove) { Icon(Icons.Default.Delete, contentDescription = "Remove", tint = Color.Red) }
+            IconButton(onClick = onRemove) {
+                Icon(Icons.Outlined.Delete, contentDescription = "Remove", tint = PremiumColors.Error, modifier = Modifier.size(20.dp))
             }
         }
     }
 }
 
 @Composable
-fun OrderSummary(total: Int) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+fun PremiumOrderDetails(subtotal: Int, tax: Int, delivery: Int, total: Int) {
+    PremiumCard(modifier = Modifier.fillMaxWidth()) {
+        Text("Payment Details", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        DetailRow("Subtotal", "₹$subtotal")
+        DetailRow("Service Tax (5%)", "₹$tax")
+        DetailRow("Delivery Fee", "₹$delivery")
+        
+        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = PremiumColors.Gray100)
+        
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("Total Amount", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            Text("₹$total", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = PremiumColors.Accent)
+        }
+    }
+}
+
+@Composable
+fun DetailRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text("Order Summary", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-            Spacer(modifier = Modifier.height(12.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Subtotal")
-                Text("₹$total")
-            }
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("GST (5%)")
-                Text("₹${(total * 0.05).toInt()}")
-            }
-            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Grand Total", fontWeight = FontWeight.Bold, fontSize = 20.sp)
-                Text("₹${(total * 1.05).toInt()}", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = MaterialTheme.colorScheme.primary)
-            }
-        }
+        Text(label, color = PremiumColors.Gray500, fontSize = 14.sp)
+        Text(value, fontWeight = FontWeight.Medium, fontSize = 14.sp)
     }
 }
 
 @Composable
-fun CartBottomBar(total: Int, onCheckout: () -> Unit) {
+fun PremiumCartBottomBar(total: Int, onCheckout: () -> Unit) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shadowElevation = 8.dp,
-        color = Color.White
+        shadowElevation = 16.dp,
+        color = MaterialTheme.colorScheme.surface
     ) {
         Row(
             modifier = Modifier
-                .padding(16.dp)
+                .padding(20.dp)
                 .navigationBarsPadding(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Column {
-                Text("Total Amount", fontSize = 14.sp, color = Color.Gray)
-                Text("₹${(total * 1.05).toInt()}", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
+            Column(modifier = Modifier.weight(0.4f)) {
+                Text("Total", fontSize = 12.sp, color = PremiumColors.Gray500)
+                Text("₹$total", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = PremiumColors.Accent)
             }
-            Button(
+            PremiumButton(
+                text = "Place Order",
                 onClick = onCheckout,
-                modifier = Modifier
-                    .height(50.dp)
-                    .width(180.dp),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Text("Checkout", fontSize = 18.sp)
-            }
+                modifier = Modifier.weight(0.6f),
+                containerColor = PremiumColors.Primary
+            )
         }
     }
 }

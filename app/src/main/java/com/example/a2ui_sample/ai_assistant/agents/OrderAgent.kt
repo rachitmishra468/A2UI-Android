@@ -40,17 +40,21 @@ class OrderAgent @Inject constructor(
              
             RULES (must follow exactly):
             1) ALWAYS call a tool to retrieve order data, track status, or cancel an order.
-            2) If a user says "cancel it" or "cancel my order", use order history to find the most recent active order ID and call `cancel_order(orderId)`.
-            3) If you need an order ID but don't have it, use `get_order_history` first to identify the relevant order.
-            4) Once the tool returns results, explain the status, cancellation result, or list history clearly to the user.
+            2) When a user asks for "my order status" or "where is my order", call `get_order_history(onlyLatest=true)`.
+            3) When a user asks for "all orders" or "order history", call `get_order_history(onlyLatest=false)`.
+            4) If a user says "cancel it" or "cancel my order", use order history to find the most recent active order ID and call `cancel_order(orderId)`.
+            5) If you need an order ID but don't have it, use `get_order_history` first to identify the relevant order.
+            6) Once the tool returns results, explain the status, cancellation result, or list history clearly to the user.
             
             Example:
              User: reorder last order
              Tool: reorder_last_order()
              
-             User: cancel my order
-             Tool: get_order_history() -> Find ID
-             Tool: cancel_order(orderId="123")
+             User: my order status
+             Tool: get_order_history(onlyLatest=true)
+
+             User: show all my orders
+             Tool: get_order_history(onlyLatest=false)
         """
     }
 }

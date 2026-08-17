@@ -3,11 +3,12 @@ package com.example.a2ui_sample.presentation.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,6 +20,9 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import com.example.a2ui_sample.presentation.viewmodel.RestaurantMainViewModel
+import com.example.a2ui_sample.presentation.theme.PremiumColors
+import com.example.a2ui_sample.presentation.components.PremiumCard
+import com.example.a2ui_sample.presentation.components.PremiumButton
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -28,7 +32,10 @@ fun CheckoutScreen(
     viewModel: RestaurantMainViewModel = hiltViewModel()
 ) {
     val cartItems by viewModel.cartItems.collectAsState()
-    val total = cartItems.sumOf { it.quantity * it.menuItem.price.amount }
+    val subtotal = cartItems.sumOf { it.quantity * it.menuItem.price.amount }
+    val tax = (subtotal * 0.05).toInt()
+    val total = subtotal + tax
+    
     var selectedPayment by remember { mutableStateOf("UPI") }
     var selectedType by remember { mutableStateOf("Delivery") }
 
@@ -37,7 +44,7 @@ fun CheckoutScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Checkout") },
+                title = { Text("Checkout", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -50,87 +57,73 @@ fun CheckoutScreen(
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
-                .background(Color(0xFFF8F8F8))
+                .background(MaterialTheme.colorScheme.background)
         ) {
             LazyColumn(
                 modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                contentPadding = PaddingValues(20.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                // 1. Order Summary
+                // Service Type Segmented Control
                 item {
-                    SectionTitle("Order Summary")
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = Color.White)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(PremiumColors.Gray100, CircleShape)
+                            .padding(4.dp)
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            cartItems.forEach { item ->
-                                Row(
-                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text("${item.quantity}x ${item.menuItem.name}")
-                                    Text("₹${item.menuItem.price.amount * item.quantity}")
-                                }
-                            }
-                            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                        ServiceTypeItem("Delivery", selectedType == "Delivery", { selectedType = "Delivery" }, Modifier.weight(1f))
+                        ServiceTypeItem("Dine In", selectedType == "Dine In", { selectedType = "Dine In" }, Modifier.weight(1f))
+                    }
+                }
+
+                // Payment Methods
+                item {
+                    SectionHeader("Payment Method")
+                    PremiumCard(modifier = Modifier.fillMaxWidth()) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            PremiumPaymentOption("UPI / GPay", Icons.Outlined.AccountBalanceWallet, selectedPayment == "UPI", { selectedPayment = "UPI" })
+                            HorizontalDivider(color = PremiumColors.Gray50)
+                            PremiumPaymentOption("Credit / Debit Card", Icons.Outlined.CreditCard, selectedPayment == "Card", { selectedPayment = "Card" })
+                            HorizontalDivider(color = PremiumColors.Gray50)
+                            PremiumPaymentOption("Cash on Delivery", Icons.Outlined.Payments, selectedPayment == "Cash", { selectedPayment = "Cash" })
+                        }
+                    }
+                }
+
+                // Summary
+                item {
+                    SectionHeader("Order Summary")
+                    PremiumCard(modifier = Modifier.fillMaxWidth()) {
+                        cartItems.forEach { item ->
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text("Total", fontWeight = FontWeight.Bold)
-                                Text("₹$total", fontWeight = FontWeight.Bold)
+                                Text("${item.quantity}x ${item.menuItem.name}", color = PremiumColors.Gray700, fontSize = 14.sp)
+                                Text("₹${item.menuItem.price.amount * item.quantity}", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                             }
                         }
-                    }
-                }
-
-                // 2. Delivery / Dine In
-                item {
-                    SectionTitle("Delivery / Dine In")
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TypeButton("Delivery", selectedType == "Delivery", { selectedType = "Delivery" }, Modifier.weight(1f))
-                        TypeButton("Dine In", selectedType == "Dine In", { selectedType = "Dine In" }, Modifier.weight(1f))
-                    }
-                }
-
-                // 3. Payment Method
-                item {
-                    SectionTitle("Payment Method")
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = Color.White)
-                    ) {
-                        Column {
-                            PaymentOption("UPI", selectedPayment == "UPI", { selectedPayment = "UPI" })
-                            PaymentOption("Credit/Debit Card", selectedPayment == "Card", { selectedPayment = "Card" })
-                            PaymentOption("Cash on Delivery", selectedPayment == "Cash", { selectedPayment = "Cash" })
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = PremiumColors.Gray100)
+                        DetailRowItem("Subtotal", "₹$subtotal")
+                        DetailRowItem("Service Tax (5%)", "₹$tax")
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Total Amount", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Text("₹$total", fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, color = PremiumColors.Accent)
                         }
                     }
-                }
-
-                // 4. Promo Code
-                item {
-                    SectionTitle("Promo Code")
-                    OutlinedTextField(
-                        value = "",
-                        onValueChange = {},
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Enter promo code") },
-                        trailingIcon = { TextButton(onClick = {}) { Text("Apply") } },
-                        shape = RoundedCornerShape(12.dp)
-                    )
                 }
             }
 
-            // Place Order Button
+            // Sticky Bottom Button
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                shadowElevation = 8.dp,
-                color = Color.White
+                shadowElevation = 16.dp,
+                color = MaterialTheme.colorScheme.surface
             ) {
-                Button(
+                PremiumButton(
+                    text = "Place Order • ₹$total",
                     onClick = {
                         scope.launch {
                             val order = viewModel.checkout()
@@ -139,54 +132,74 @@ fun CheckoutScreen(
                             }
                         }
                     },
-                    modifier = Modifier
-                        .padding(16.dp)
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text("Place Order - ₹${(total * 1.05).toInt()}", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                }
+                    modifier = Modifier.padding(20.dp).fillMaxWidth(),
+                    containerColor = PremiumColors.Primary
+                )
             }
         }
     }
 }
 
 @Composable
-fun SectionTitle(title: String) {
+fun SectionHeader(title: String) {
     Text(
         text = title,
-        fontWeight = FontWeight.Bold,
-        fontSize = 18.sp,
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.secondary,
         modifier = Modifier.padding(bottom = 8.dp)
     )
 }
 
 @Composable
-fun TypeButton(label: String, isSelected: Boolean, onClick: () -> Unit, modifier: Modifier) {
-    Button(
+fun ServiceTypeItem(label: String, isSelected: Boolean, onClick: () -> Unit, modifier: Modifier) {
+    Surface(
+        modifier = modifier.height(40.dp),
         onClick = onClick,
-        modifier = modifier,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = if (isSelected) MaterialTheme.colorScheme.primary else Color.White,
-            contentColor = if (isSelected) Color.White else Color.Black
-        ),
-        shape = RoundedCornerShape(12.dp),
-        border = if (isSelected) null else androidx.compose.foundation.BorderStroke(1.dp, Color.LightGray)
+        color = if (isSelected) Color.White else Color.Transparent,
+        shape = CircleShape,
+        shadowElevation = if (isSelected) 2.dp else 0.dp
     ) {
-        Text(label)
+        Box(contentAlignment = Alignment.Center) {
+            Text(
+                label, 
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                fontSize = 13.sp,
+                color = if (isSelected) PremiumColors.Primary else PremiumColors.Gray500
+            )
+        }
     }
 }
 
 @Composable
-fun PaymentOption(label: String, isSelected: Boolean, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
+fun PremiumPaymentOption(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, isSelected: Boolean, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        color = Color.Transparent,
+        modifier = Modifier.fillMaxWidth()
     ) {
-        RadioButton(selected = isSelected, onClick = onClick)
-        Text(label, modifier = Modifier.padding(start = 8.dp))
+        Row(
+            modifier = Modifier.padding(vertical = 12.dp, horizontal = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(icon, contentDescription = null, tint = if (isSelected) PremiumColors.Accent else PremiumColors.Gray400, modifier = Modifier.size(22.dp))
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(label, modifier = Modifier.weight(1f), fontWeight = FontWeight.Medium, fontSize = 15.sp)
+            RadioButton(
+                selected = isSelected, 
+                onClick = onClick,
+                colors = RadioButtonDefaults.colors(selectedColor = PremiumColors.Accent)
+            )
+        }
+    }
+}
+
+@Composable
+fun DetailRowItem(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(label, color = PremiumColors.Gray500, fontSize = 13.sp)
+        Text(value, fontWeight = FontWeight.Medium, fontSize = 13.sp)
     }
 }

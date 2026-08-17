@@ -24,13 +24,21 @@ fun AppNavigation() {
                 onNavigateToAssistant = { navController.navigate("ai_assistant") },
                 onNavigateToMenu = { navController.navigate("menu") },
                 onNavigateToReservations = { navController.navigate("reservation") },
-                onNavigateToCart = { navController.navigate("cart") }
+                onNavigateToCart = { navController.navigate("cart") },
+                onNavigateToCoupons = { navController.navigate("coupons") }
             )
+        }
+        composable("dashboard") {
+            DashboardScreen(onBack = { navController.popBackStack() })
+        }
+        composable("coupons") {
+            CouponScreen(onBack = { navController.popBackStack() })
         }
         composable("ai_assistant") {
             AssistantChatScreen(
                 onBack = { navController.popBackStack() },
-                onNavigateToCart = { navController.navigate("cart") }
+                onNavigateToCart = { navController.navigate("cart") },
+                onNavigateToCheckout = { navController.navigate("checkout") }
             )
         }
         composable("chat") {

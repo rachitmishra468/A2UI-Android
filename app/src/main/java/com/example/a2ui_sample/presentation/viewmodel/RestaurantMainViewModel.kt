@@ -44,6 +44,7 @@ class RestaurantMainViewModel @Inject constructor(
     private val orderRepository: OrderRepository,
     private val reservationRepository: ReservationRepository,
     private val feedbackRepository: FeedbackRepository,
+    private val couponRepository: com.example.a2ui_sample.domain.repository.CouponRepository,
     private val chatMessageDao: ChatMessageDao,
     private val memoryManager: com.example.a2ui_sample.agent.ConversationMemoryManager,
     private val processRestaurantQueryUseCase: ProcessRestaurantQueryUseCase,
@@ -61,6 +62,9 @@ class RestaurantMainViewModel @Inject constructor(
 
     private val _featuredItems = MutableStateFlow<List<MenuItem>>(emptyList())
     val featuredItems: StateFlow<List<MenuItem>> = _featuredItems
+
+    private val _availableCoupons = MutableStateFlow<List<Coupon>>(emptyList())
+    val availableCoupons: StateFlow<List<Coupon>> = _availableCoupons.asStateFlow()
 
     private val _uiMessages = mutableStateListOf<UiMessage>()
     val uiMessages: List<UiMessage> = _uiMessages
@@ -84,8 +88,19 @@ class RestaurantMainViewModel @Inject constructor(
     init {
         Log.d("A2UI_INIT", "RestaurantMainViewModel init started")
         loadFeaturedItems()
+        loadAvailableCoupons()
         loadChatHistory()
         renderer.setActionHandler(this)
+    }
+
+    private fun loadAvailableCoupons() {
+        viewModelScope.launch {
+            try {
+                _availableCoupons.value = couponRepository.getAvailableCoupons()
+            } catch (e: Exception) {
+                Log.e("A2UI_INIT", "Error loading coupons", e)
+            }
+        }
     }
 
     private fun loadChatHistory() {
@@ -537,6 +552,34 @@ class RestaurantMainViewModel @Inject constructor(
                 Log.d("A2UI_FLOW", "🗑️ Booking deleted: ${reservationId.value}")
             } catch (e: Exception) {
                 Log.e("A2UI_FLOW", "Error deleting booking: ${e.message}", e)
+            }
+        }
+    }
+
+    fun cancelOrder(orderId: OrderId) {
+        viewModelScope.launch {
+            try {
+                orderRepository.updateOrderStatus(orderId, OrderStatus.CANCELLED)
+                Log.d("A2UI_FLOW", "❌ Order cancelled: ${orderId.value}")
+            } catch (e: Exception) {
+                Log.e("A2UI_FLOW", "Error cancelling order: ${e.message}", e)
+            }
+        }
+    }
+
+    fun simulateNextOrderStatus(order: Order) {
+        viewModelScope.launch {
+            val nextStatus = when (order.status) {
+                OrderStatus.PENDING -> OrderStatus.CONFIRMED
+                OrderStatus.CONFIRMED -> OrderStatus.PREPARING
+                OrderStatus.PREPARING -> OrderStatus.READY
+                OrderStatus.READY -> OrderStatus.PICKED_UP
+                OrderStatus.PICKED_UP -> OrderStatus.DELIVERED
+                OrderStatus.DELIVERED -> OrderStatus.COMPLETED
+                else -> order.status
+            }
+            if (nextStatus != order.status) {
+                orderRepository.updateOrderStatus(order.id, nextStatus)
             }
         }
     }

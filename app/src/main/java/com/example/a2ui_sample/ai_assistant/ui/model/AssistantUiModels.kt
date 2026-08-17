@@ -11,12 +11,15 @@ sealed class AssistantUiState {
     data class CartView(val items: List<com.example.a2ui_sample.domain.model.CartItem>, val total: Int, val message: String) : AssistantUiState()
     data class BookingResult(val message: String, val date: String? = null, val time: String? = null, val guests: Int? = null) : AssistantUiState()
     data class FeedbackResult(val message: String, val rating: Int? = null) : AssistantUiState()
-    data class OrderStatus(val message: String, val status: String? = null, val eta: String? = null) : AssistantUiState()
+    data class OrderStatus(val message: String, val status: String? = null, val eta: String? = null, val progress: Float = 0f) : AssistantUiState()
+    data class RatingRequest(val orderId: String, val message: String = "How was your food? Rate us!") : AssistantUiState()
     data class CheckoutSummary(
         val items: List<com.example.a2ui_sample.domain.model.CartItem>,
         val total: Int,
         val message: String
     ) : AssistantUiState()
+    data class CouponList(val coupons: List<com.example.a2ui_sample.domain.model.Coupon>, val message: String) : AssistantUiState()
+    data class InfoCard(val title: String, val content: String, val icon: String? = null) : AssistantUiState()
     data class Error(val message: String) : AssistantUiState()
     object Loading : AssistantUiState()
 }

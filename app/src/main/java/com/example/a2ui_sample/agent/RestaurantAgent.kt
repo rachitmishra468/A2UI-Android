@@ -55,9 +55,10 @@ class RestaurantAgent @Inject constructor(
             1. Searching the menu (search_menu)
             2. Adding items to cart (add_item_to_cart)
             3. Cart management (manage_cart)
-            4. Checkout (checkout)
+            4. Checkout (restaurant_checkout)
             5. Table reservations (book_table)
-            6. Order tracking (track_order)
+            6. Order tracking (restaurant_track_order)
+            7. Submit feedback (restaurant_submit_feedback)
             
             Always confirm with the user after an action.
             """.trimIndent()

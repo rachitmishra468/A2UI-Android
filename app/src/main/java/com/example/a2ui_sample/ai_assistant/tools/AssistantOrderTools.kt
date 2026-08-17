@@ -19,7 +19,7 @@ class AssistantOrderTools @Inject constructor(
         name = "track_order",
         description = "Track the status of an order."
     )
-    suspend fun trackOrder(orderId: String? = null): Map<String, Any?> {
+    suspend fun trackOrder(orderId: String?): Map<String, Any?> {
         val id = if (!orderId.isNullOrBlank()) {
             // Remove non-digit characters if model passed something like "ORD-123"
             val cleanId = orderId.replace(Regex("[^0-9]"), "")
@@ -67,13 +67,25 @@ class AssistantOrderTools @Inject constructor(
 
     @Tool(
         name = "get_order_history",
-        description = "View your past orders."
+        description = "View your past orders. Use 'latest' parameter to only get the most recent order status."
     )
-    suspend fun getOrderHistory(): String {
+    suspend fun getOrderHistory(onlyLatest: Boolean): Map<String, Any?> {
         val orders = orderRepository.getOrderHistory(CustomerId("guest"))
-        if (orders.isEmpty()) return "You haven't placed any orders yet."
-        return "Order History:\n" + orders.joinToString("\n") { 
-            "- Order ₹${it.totalAmount} (Status: ${it.status})"
+        if (orders.isEmpty()) return mapOf("message" to "You haven't placed any orders yet.", "orders" to emptyList<Any>())
+        
+        return if (onlyLatest) {
+            val latest = orders.first()
+            mapOf(
+                "message" to "Here is your latest order status:",
+                "latestOrder" to latest,
+                "isLatestOnly" to true
+            )
+        } else {
+            mapOf(
+                "message" to "Here is your order history:",
+                "orders" to orders,
+                "isLatestOnly" to false
+            )
         }
     }
 

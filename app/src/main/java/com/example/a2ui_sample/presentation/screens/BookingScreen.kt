@@ -1,26 +1,32 @@
 package com.example.a2ui_sample.presentation.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.Groups
+import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.a2ui_sample.presentation.viewmodel.RestaurantMainViewModel
-import org.a2ui.compose.animation.AnimatedButton
-import org.a2ui.compose.animation.AnimatedText
+import com.example.a2ui_sample.presentation.theme.PremiumColors
+import com.example.a2ui_sample.presentation.components.PremiumCard
+import com.example.a2ui_sample.presentation.components.PremiumButton
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,15 +46,15 @@ fun BookingScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Book a Table") },
+                title = { Text("Reservation", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
-                    TextButton(onClick = onViewHistory) {
-                        Text("History", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                    IconButton(onClick = onViewHistory) {
+                        Icon(Icons.Outlined.History, contentDescription = "History")
                     }
                 }
             )
@@ -58,66 +64,94 @@ fun BookingScreen(
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
-                .background(Color(0xFFF8F8F8))
-                .padding(16.dp)
+                .background(MaterialTheme.colorScheme.background)
+                .padding(20.dp)
         ) {
-            // 1. Number of Guests
-            AnimatedText("Number of Guests", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = { if (guests > 1) guests-- }) { Icon(Icons.Default.RemoveCircleOutline, contentDescription = null) }
-                AnimatedText("$guests People", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold))
-                IconButton(onClick = { if (guests < 20) guests++ }) { Icon(Icons.Default.AddCircleOutline, contentDescription = null) }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // 2. Select Date
-            AnimatedText("Select Date", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
-            LazyRow(modifier = Modifier.padding(vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(dates) { date ->
-                    SelectableChip(date, date == selectedDate) { selectedDate = date }
+            // Guest Selection Card
+            PremiumCard(modifier = Modifier.fillMaxWidth()) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Outlined.Groups, contentDescription = null, tint = PremiumColors.Accent)
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text("Number of Guests", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = { if (guests > 1) guests-- },
+                        modifier = Modifier.background(PremiumColors.Gray100, CircleShape)
+                    ) { Icon(Icons.Default.Remove, contentDescription = null) }
+                    
+                    Text("$guests Guests", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
+                    
+                    IconButton(
+                        onClick = { if (guests < 20) guests++ },
+                        modifier = Modifier.background(PremiumColors.Gray100, CircleShape)
+                    ) { Icon(Icons.Default.Add, contentDescription = null) }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
-            // 3. Select Time
-            AnimatedText("Select Time", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
-            LazyRow(modifier = Modifier.padding(vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            // Date Selection
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Outlined.CalendarMonth, contentDescription = null, tint = PremiumColors.Accent, modifier = Modifier.size(20.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Select Date", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            }
+            LazyRow(modifier = Modifier.padding(vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                items(dates) { date ->
+                    PremiumSelectableChip(date, date == selectedDate) { selectedDate = date }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Time Selection
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Outlined.Schedule, contentDescription = null, tint = PremiumColors.Accent, modifier = Modifier.size(20.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Select Time", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            }
+            LazyRow(modifier = Modifier.padding(vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 items(times) { time ->
-                    SelectableChip(time, time == selectedTime) { selectedTime = time }
+                    PremiumSelectableChip(time, time == selectedTime) { selectedTime = time }
                 }
             }
 
             Spacer(modifier = Modifier.weight(1f))
 
-            AnimatedButton(
+            PremiumButton(
+                text = "Confirm Reservation",
                 onClick = {
                     viewModel.bookTable(guests, selectedDate, selectedTime) {
                         onBookingConfirmed()
                     }
                 },
-                modifier = Modifier.fillMaxWidth().height(56.dp)
-            ) {
-                Text("Confirm Booking", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-            }
+                modifier = Modifier.fillMaxWidth(),
+                containerColor = PremiumColors.Primary
+            )
         }
     }
 }
 
 @Composable
-fun SelectableChip(label: String, isSelected: Boolean, onClick: () -> Unit) {
+fun PremiumSelectableChip(label: String, isSelected: Boolean, onClick: () -> Unit) {
     Surface(
         onClick = onClick,
-        color = if (isSelected) MaterialTheme.colorScheme.primary else Color.White,
-        contentColor = if (isSelected) Color.White else Color.Black,
+        color = if (isSelected) PremiumColors.Accent else PremiumColors.Gray50,
         shape = RoundedCornerShape(12.dp),
-        border = if (isSelected) null else androidx.compose.foundation.BorderStroke(1.dp, Color.LightGray)
+        border = if (isSelected) null else androidx.compose.foundation.BorderStroke(1.dp, PremiumColors.Gray200)
     ) {
-        Text(label, modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp), fontWeight = FontWeight.Medium)
+        Text(
+            label, 
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp), 
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+            color = if (isSelected) Color.White else PremiumColors.Gray700,
+            fontSize = 14.sp
+        )
     }
 }

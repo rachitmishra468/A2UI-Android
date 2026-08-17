@@ -4,7 +4,10 @@ import android.content.Intent
 import android.speech.RecognizerIntent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -16,12 +19,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -29,12 +36,11 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.a2ui_sample.presentation.viewmodel.NavigationEvent
 import com.example.a2ui_sample.presentation.viewmodel.RestaurantMainViewModel
 import com.example.a2ui_sample.presentation.viewmodel.UiMessage
+import com.example.a2ui_sample.presentation.viewmodel.ChatLoadingState
+import com.example.a2ui_sample.presentation.theme.PremiumColors
+import com.example.a2ui_sample.presentation.theme.PremiumSpacing
 import kotlinx.coroutines.flow.collectLatest
 import org.a2ui.compose.rendering.A2UIRenderer
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
-import androidx.compose.ui.graphics.graphicsLayer
-import com.example.a2ui_sample.presentation.viewmodel.ChatLoadingState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -59,10 +65,7 @@ fun ChatScreen(
             val data = result.data
             val results = data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
             if (!results.isNullOrEmpty()) {
-                val spokenText = results[0]
-                textState = spokenText
-                // Automatically send if needed, or just fill the box
-                // viewModel.sendMessage(spokenText)
+                textState = results[0]
             }
         }
     }
@@ -75,7 +78,7 @@ fun ChatScreen(
         voiceLauncher.launch(intent)
     }
 
-    // Observe navigation events from ViewModel (A2UI actions)
+    // Observe navigation events
     LaunchedEffect(viewModel) {
         viewModel.navigationEvents.collectLatest { event ->
             when (event) {
@@ -100,9 +103,20 @@ fun ChatScreen(
             TopAppBar(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("AI Assistant")
+                        Surface(
+                            modifier = Modifier.size(32.dp),
+                            shape = CircleShape,
+                            color = PremiumColors.Accent.copy(alpha = 0.1f)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = PremiumColors.Accent, modifier = Modifier.size(18.dp))
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text("Rango AI Assistant", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Text("Elite Support", style = MaterialTheme.typography.labelSmall, color = PremiumColors.Success)
+                        }
                     }
                 },
                 navigationIcon = {
@@ -111,19 +125,9 @@ fun ChatScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { viewModel.clearChat() }) { Icon(Icons.Default.DeleteSweep, contentDescription = "Clear") }
-                    Box {
-                        IconButton(onClick = onNavigateToCart) {
-                            Icon(Icons.Default.ShoppingCart, contentDescription = "Cart")
-                        }
-                        val cartItems by viewModel.cartItems.collectAsState()
-                        val cartCount = cartItems.sumOf { it.quantity }
-                        if (cartCount > 0) {
-                            Badge(
-                                modifier = Modifier.align(Alignment.TopEnd).padding(4.dp),
-                                containerColor = MaterialTheme.colorScheme.error
-                            ) { Text(cartCount.toString()) }
-                        }
+                    IconButton(onClick = { viewModel.clearChat() }) { Icon(Icons.Outlined.DeleteSweep, contentDescription = "Clear") }
+                    IconButton(onClick = onNavigateToCart) {
+                        Icon(Icons.Outlined.LocalMall, contentDescription = "Cart")
                     }
                 }
             )
@@ -133,8 +137,8 @@ fun ChatScreen(
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
-                .background(Color(0xFFF0F2F5))
-                .imePadding() // Fix for keyboard hiding input
+                .background(MaterialTheme.colorScheme.background)
+                .imePadding()
         ) {
             // 1. Message List
             LazyColumn(
@@ -143,13 +147,13 @@ fun ChatScreen(
                     .weight(1f)
                     .fillMaxWidth(),
                 contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(
                     items = uiMessages,
                     key = { it.id }
                 ) { message ->
-                    ChatBubble(message, viewModel.renderer)
+                    PremiumChatBubble(message, viewModel.renderer)
                 }
 
                 // Loading State
@@ -161,17 +165,17 @@ fun ChatScreen(
                         exit = fadeOut() + shrinkVertically()
                     ) {
                         loadingState?.let { state ->
-                            ProcessingBubble(state)
+                            PremiumProcessingBubble(state)
                         }
                     }
                 }
             }
 
-            // 2. Quick Actions
-            QuickActions(onAction = { viewModel.sendMessage(it) })
+            // 2. Suggestion Pills
+            PremiumQuickActions(onAction = { viewModel.sendMessage(it) })
 
-            // 3. Input Area
-            ChatInput(
+            // 3. Modern Input Area
+            PremiumChatInput(
                 text = textState,
                 onTextChange = { textState = it },
                 onSend = {
@@ -187,125 +191,147 @@ fun ChatScreen(
 }
 
 @Composable
-fun ProcessingBubble(state: ChatLoadingState) {
+fun PremiumChatBubble(message: UiMessage, renderer: A2UIRenderer) {
+    val isUser = message.isFromUser
+    val alignment = if (isUser) Alignment.End else Alignment.Start
+    
     Column(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        horizontalAlignment = Alignment.Start
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = alignment
     ) {
-        Card(
-            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 0.dp, bottomEnd = 16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-            modifier = Modifier.widthIn(max = 280.dp)
-        ) {
-            Column(modifier = Modifier.padding(12.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    TypingIndicator()
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = state.status,
-                        fontSize = 14.sp,
-                        color = Color.Gray,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-
-                // If we have skeleton data or multi-steps, we could show them here
-                Spacer(modifier = Modifier.height(8.dp))
-                SkeletonCard()
+        if (!isUser && message.isA2UI && message.a2uiPayload != null) {
+            A2UIPayloadRenderer(json = message.a2uiPayload, renderer = renderer)
+        } else {
+            Surface(
+                shape = RoundedCornerShape(
+                    topStart = 16.dp,
+                    topEnd = 16.dp,
+                    bottomStart = if (isUser) 16.dp else 4.dp,
+                    bottomEnd = if (isUser) 4.dp else 16.dp
+                ),
+                color = if (isUser) PremiumColors.Accent else PremiumColors.Gray100,
+                modifier = Modifier.widthIn(max = 280.dp)
+            ) {
+                Text(
+                    text = message.text,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                    color = if (isUser) Color.White else PremiumColors.Gray900,
+                    fontSize = 15.sp,
+                    lineHeight = 20.sp
+                )
             }
         }
     }
 }
 
 @Composable
-fun TypingIndicator() {
-    val infiniteTransition = rememberInfiniteTransition()
-    val dotCount = 3
+fun PremiumProcessingBubble(state: ChatLoadingState) {
     Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+        modifier = Modifier.padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        for (i in 0 until dotCount) {
-            val scale by infiniteTransition.animateFloat(
-                initialValue = 0.6f,
-                targetValue = 1f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(600, easing = LinearEasing),
-                    repeatMode = RepeatMode.Reverse,
-                    initialStartOffset = StartOffset(i * 200)
+        Box(
+            modifier = Modifier
+                .size(32.dp)
+                .background(PremiumColors.Gray100, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(16.dp),
+                strokeWidth = 2.dp,
+                color = PremiumColors.Accent
+            )
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Text(
+            text = state.status,
+            fontSize = 13.sp,
+            color = PremiumColors.Gray500,
+            fontWeight = FontWeight.Medium
+        )
+    }
+}
+
+@Composable
+fun PremiumQuickActions(onAction: (String) -> Unit) {
+    val actions = listOf(
+        "Suggest a meal",
+        "Book a table",
+        "Show my cart",
+        "Active offers",
+        "Track order"
+    )
+    LazyRow(
+        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(actions) { action ->
+            Surface(
+                modifier = Modifier.clickable { onAction(action) },
+                shape = CircleShape,
+                border = androidx.compose.foundation.BorderStroke(1.dp, PremiumColors.Gray200),
+                color = MaterialTheme.colorScheme.surface
+            ) {
+                Text(
+                    text = action,
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = PremiumColors.Gray700
                 )
-            )
-            Box(
-                modifier = Modifier
-                    .size(6.dp)
-                    .graphicsLayer {
-                        scaleX = scale
-                        scaleY = scale
-                    }
-                    .background(MaterialTheme.colorScheme.primary, CircleShape)
-            )
+            }
         }
     }
 }
 
 @Composable
-fun SkeletonCard() {
-    val infiniteTransition = rememberInfiniteTransition()
-    val alpha by infiniteTransition.animateFloat(
-        initialValue = 0.3f,
-        targetValue = 0.7f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1000),
-            repeatMode = RepeatMode.Reverse
-        )
-    )
-
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth(0.8f)
-                .height(14.dp)
-                .background(Color.LightGray.copy(alpha = alpha), RoundedCornerShape(4.dp))
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Box(
-            modifier = Modifier
-                .fillMaxWidth(0.5f)
-                .height(14.dp)
-                .background(Color.LightGray.copy(alpha = alpha), RoundedCornerShape(4.dp))
-        )
-    }
-}
-
-@Composable
-fun ChatBubble(message: UiMessage, renderer: A2UIRenderer) {
-    val isUser = message.isFromUser
-    val alignment = if (isUser) Alignment.End else Alignment.Start
-    val color = if (isUser) MaterialTheme.colorScheme.primary else Color.White
-    val textColor = if (isUser) Color.White else Color.Black
-
-    Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = alignment) {
-        if (!isUser && message.isA2UI && message.a2uiPayload != null) {
-            // Render structured A2UI payload
-            A2UIPayloadRenderer(json = message.a2uiPayload, renderer = renderer)
-        } else {
-            Card(
-                shape = RoundedCornerShape(
-                    topStart = 16.dp,
-                    topEnd = 16.dp,
-                    bottomStart = if (isUser) 16.dp else 0.dp,
-                    bottomEnd = if (isUser) 0.dp else 16.dp
+fun PremiumChatInput(
+    text: String,
+    onTextChange: (String) -> Unit,
+    onSend: () -> Unit,
+    onVoiceInput: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+            .shadow(12.dp, RoundedCornerShape(28.dp)),
+        color = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(28.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onVoiceInput) {
+                Icon(Icons.Outlined.Mic, contentDescription = null, tint = PremiumColors.Gray400)
+            }
+            TextField(
+                value = text,
+                onValueChange = onTextChange,
+                modifier = Modifier.weight(1f),
+                placeholder = { Text("Message Rango...", color = PremiumColors.Gray400) },
+                colors = TextFieldDefaults.colors(
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent
                 ),
-                colors = CardDefaults.cardColors(containerColor = color),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-                modifier = Modifier.widthIn(max = 300.dp)
+                maxLines = 4,
+                textStyle = MaterialTheme.typography.bodyLarge
+            )
+            IconButton(
+                onClick = onSend,
+                enabled = text.isNotBlank(),
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(if (text.isNotBlank()) PremiumColors.Accent else PremiumColors.Gray100, CircleShape)
             ) {
-                Text(
-                    text = message.text,
-                    modifier = Modifier.padding(12.dp),
-                    color = textColor,
-                    fontSize = 15.sp
+                Icon(
+                    Icons.AutoMirrored.Filled.Send,
+                    contentDescription = "Send",
+                    tint = if (text.isNotBlank()) Color.White else PremiumColors.Gray400,
+                    modifier = Modifier.size(18.dp)
                 )
             }
         }
@@ -314,7 +340,6 @@ fun ChatBubble(message: UiMessage, renderer: A2UIRenderer) {
 
 @Composable
 fun A2UIPayloadRenderer(json: String, renderer: A2UIRenderer) {
-    // Extract surfaceId from JSON (handles single object or multi-line JSONL)
     val surfaceId = remember(json) {
         try {
             val firstLine = json.trim().split("\n").firstOrNull { it.isNotBlank() } ?: json
@@ -325,7 +350,6 @@ fun A2UIPayloadRenderer(json: String, renderer: A2UIRenderer) {
                 jsonObj.has("updateComponents") -> jsonObj.getAsJsonObject("updateComponents").get("surfaceId").asString
                 jsonObj.has("updateDataModel") -> jsonObj.getAsJsonObject("updateDataModel").get("surfaceId").asString
                 else -> {
-                    // Search all lines if not in first
                     val allLines = json.trim().split("\n")
                     var foundId: String? = null
                     for (line in allLines) {
@@ -344,7 +368,6 @@ fun A2UIPayloadRenderer(json: String, renderer: A2UIRenderer) {
                 }
             }
         } catch (e: Exception) {
-            android.util.Log.e("A2UI_RESTORE", "Error parsing JSON ID: ${e.message}")
             null
         }
     }
@@ -356,96 +379,40 @@ fun A2UIPayloadRenderer(json: String, renderer: A2UIRenderer) {
             if (surfaceState is org.a2ui.compose.rendering.A2UIRendererState.Loading) {
                 SkeletonCard()
             } else {
-                android.util.Log.d("A2UI_RESTORE", "Rendering Started for $surfaceId")
                 val content = renderer.renderSurface(surfaceId)
                 content.invoke()
-                android.util.Log.d("A2UI_RESTORE", "Rendering Completed for $surfaceId")
             }
         } else {
-            android.util.Log.e("A2UI_RESTORE", "Missing JSON or invalid surfaceId")
             Text("Error: Could not render UI component", color = Color.Red, fontSize = 12.sp, modifier = Modifier.padding(8.dp))
         }
     }
 }
 
 @Composable
-fun QuickActions(onAction: (String) -> Unit) {
-    val actions = listOf(
-        "I'm hungry, what do you recommend?",
-        "Build a meal under ₹300",
-        "Suggest something spicy",
-        "What's your most popular combo?",
-        "Help me order lunch",
-        "I want a vegetarian meal",
-        "Show today's offers",
-        "Book a table for tonight",
-        "Show my cart",
-        "Repeat my last order",
-        "Take me to checkout",
-        "Show my previous feedback",
-        "Rate my last order",
-        "Feedback Dashboard"
+fun SkeletonCard() {
+    val infiniteTransition = rememberInfiniteTransition()
+    val alpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 0.7f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000),
+            repeatMode = RepeatMode.Reverse
+        )
     )
-    LazyRow(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        contentPadding = PaddingValues(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        items(actions) { action ->
-            SuggestionChip(
-                onClick = { onAction(action) },
-                label = { Text(action) },
-                shape = CircleShape
-            )
-        }
-    }
-}
 
-@Composable
-fun ChatInput(text: String, onTextChange: (String) -> Unit, onSend: () -> Unit, onVoiceInput: () -> Unit) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shadowElevation = 8.dp,
-        color = Color.White
-    ) {
-        Row(
+    Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+        Box(
             modifier = Modifier
-                .padding(12.dp)
-                .navigationBarsPadding(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = onVoiceInput) {
-                Icon(Icons.Default.Mic, contentDescription = "Voice Input", tint = MaterialTheme.colorScheme.primary)
-            }
-            Spacer(modifier = Modifier.width(4.dp))
-            TextField(
-                value = text,
-                onValueChange = onTextChange,
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(24.dp)),
-                placeholder = { Text("Type a message...") },
-                colors = TextFieldDefaults.colors(
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                    unfocusedContainerColor = Color(0xFFF0F2F5),
-                    focusedContainerColor = Color(0xFFF0F2F5)
-                ),
-                maxLines = 4
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            FloatingActionButton(
-                onClick = onSend,
-                modifier = Modifier.size(48.dp),
-                shape = CircleShape,
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = Color.White,
-                elevation = FloatingActionButtonDefaults.elevation(0.dp)
-            ) {
-                Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send", modifier = Modifier.size(20.dp))
-            }
-        }
+                .fillMaxWidth(0.8f)
+                .height(14.dp)
+                .background(Color.LightGray.copy(alpha = alpha), RoundedCornerShape(4.dp))
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(0.5f)
+                .height(14.dp)
+                .background(Color.LightGray.copy(alpha = alpha), RoundedCornerShape(4.dp))
+        )
     }
 }

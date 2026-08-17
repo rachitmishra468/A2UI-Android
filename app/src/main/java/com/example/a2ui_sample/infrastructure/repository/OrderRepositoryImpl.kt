@@ -9,6 +9,7 @@ import com.google.gson.Gson
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -19,9 +20,11 @@ import javax.inject.Singleton
 @Singleton
 class OrderRepositoryImpl @Inject constructor(
     private val orderDao: OrderDao,
-    private val deliveryDao: com.example.a2ui_sample.infrastructure.persistence.dao.DeliveryDao
+    private val deliveryDao: com.example.a2ui_sample.infrastructure.persistence.dao.DeliveryDao,
+    private val statusSimulator: javax.inject.Provider<com.example.a2ui_sample.infrastructure.service.OrderStatusSimulator>
 ) : OrderRepository {
     private val gson = Gson()
+    private val repositoryScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO + kotlinx.coroutines.SupervisorJob())
 
     override suspend fun placeOrder(order: Order): OrderId {
         val entity = OrderHistoryEntity(
@@ -47,7 +50,14 @@ class OrderRepositoryImpl @Inject constructor(
             )
         )
 
+        // Start automatic status simulation
+        statusSimulator.get().startSimulation(order.id)
+
         return order.id
+    }
+
+    private fun simulateOrderLifecycle(orderId: OrderId) {
+        // Removed local logic, now using statusSimulator
     }
 
     override suspend fun getOrderById(id: OrderId): Order? {

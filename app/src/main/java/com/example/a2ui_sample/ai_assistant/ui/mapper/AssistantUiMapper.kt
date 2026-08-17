@@ -122,17 +122,48 @@ class AssistantUiMapper @Inject constructor() {
                     val rating = (data["rating"] as? Number)?.toInt()
                     AssistantUiState.FeedbackResult(msg, rating)
                 }
+                "get_order_history" -> {
+                    val isLatestOnly = (data["isLatestOnly"] as? Boolean) ?: false
+                    val msg = data["message"] as? String ?: text
+                    
+                    if (isLatestOnly) {
+                        val latestMap = data["latestOrder"] as? Map<*, *>
+                        val statusStr = latestMap?.get("status") as? String ?: "PENDING"
+                        
+                        // Principle Engineer Sync: Match dots (0, 0.33, 0.66, 1.0)
+                        val progress = when(statusStr.uppercase()) {
+                            "PENDING", "CONFIRMED" -> 0.01f
+                            "PREPARING" -> 0.33f
+                            "READY", "PICKED_UP" -> 0.66f
+                            "DELIVERED", "COMPLETED" -> 1.0f
+                            else -> 0f
+                        }
+                        
+                        val friendlyStatus = statusStr.replace("_", " ").lowercase().replaceFirstChar { it.uppercase() }
+                        val fullMsg = if (msg.contains(friendlyStatus, ignoreCase = true)) msg else "$msg Current status is $friendlyStatus."
+
+                        AssistantUiState.OrderStatus(fullMsg, statusStr, progress = progress)
+                    } else {
+                        AssistantUiState.TextResponse(msg)
+                    }
+                }
                 "track_order" -> {
                     val msg = data["message"] as? String ?: text
-                    val status = data["deliveryStatus"] as? String ?: data["orderStatus"] as? String
+                    val status = data["deliveryStatus"] as? String ?: data["orderStatus"] as? String ?: "PENDING"
                     val eta = data["eta"] as? String
                     
-                    if (status == null && eta == null) {
-                        // If no tracking info found, just show the message as text
-                        AssistantUiState.TextResponse(msg)
-                    } else {
-                        AssistantUiState.OrderStatus(msg, status, eta)
+                    val progress = when(status.uppercase()) {
+                        "PENDING", "CONFIRMED" -> 0.01f
+                        "PREPARING" -> 0.33f
+                        "READY", "PICKED_UP" -> 0.66f
+                        "DELIVERED", "COMPLETED" -> 1.0f
+                        else -> 0f
                     }
+
+                    val friendlyStatus = status.replace("_", " ").lowercase().replaceFirstChar { it.uppercase() }
+                    val fullMsg = if (msg.contains(friendlyStatus, ignoreCase = true)) msg else "$msg Current status is $friendlyStatus."
+
+                    AssistantUiState.OrderStatus(fullMsg, status, eta, progress = progress)
                 }
                 "cancel_order" -> {
                     val msg = data["message"] as? String ?: text

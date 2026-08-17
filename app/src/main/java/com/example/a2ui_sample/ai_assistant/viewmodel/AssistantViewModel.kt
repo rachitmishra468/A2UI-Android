@@ -13,7 +13,17 @@ import com.example.a2ui_sample.ai_assistant.ui.model.AssistantUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import com.example.a2ui_sample.domain.repository.MenuRepository
+import com.example.a2ui_sample.domain.repository.OrderRepository
+import com.example.a2ui_sample.domain.repository.FeedbackRepository
 import com.example.a2ui_sample.domain.model.CartItem
+import com.example.a2ui_sample.domain.model.Feedback
+import com.example.a2ui_sample.domain.model.Sentiment
+import com.example.a2ui_sample.domain.model.OrderItem
+import com.example.a2ui_sample.domain.valueobjects.OrderId
+import com.example.a2ui_sample.domain.valueobjects.Price
+import com.example.a2ui_sample.domain.valueobjects.CustomerId
+import com.example.a2ui_sample.domain.valueobjects.Rating
+import com.example.a2ui_sample.domain.valueobjects.OrderStatus as DomainOrderStatus
 import com.example.a2ui_sample.infrastructure.persistence.dao.ChatMessageDao
 import com.example.a2ui_sample.infrastructure.persistence.entity.ChatMessageEntity
 import com.google.gson.Gson
@@ -21,12 +31,20 @@ import com.google.gson.reflect.TypeToken
 import com.google.gson.stream.JsonReader
 import java.io.StringReader
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.asSharedFlow
 import javax.inject.Inject
+
+sealed class AssistantNavigationEvent {
+    object NavigateToCheckout : AssistantNavigationEvent()
+}
 
 @HiltViewModel
 class AssistantViewModel @Inject constructor(
     private val orchestrator: AssistantOrchestrator,
     private val menuRepository: MenuRepository,
+    private val orderRepository: OrderRepository,
+    private val feedbackRepository: FeedbackRepository,
     private val chatMessageDao: ChatMessageDao
 ) : ViewModel() {
 
@@ -39,11 +57,32 @@ class AssistantViewModel @Inject constructor(
     var cartItems by mutableStateOf<List<CartItem>>(emptyList())
         private set
 
+    private val _navigationEvents = kotlinx.coroutines.flow.MutableSharedFlow<AssistantNavigationEvent>()
+    val navigationEvents = _navigationEvents.asSharedFlow()
+
     private val conversationId = "ai_assistant"
 
     init {
         observeCart()
         observeChatHistory()
+        observeOrderUpdates()
+    }
+
+    private fun observeOrderUpdates() {
+        viewModelScope.launch {
+            orderRepository.getActiveOrders().collectLatest { orders ->
+                orders.forEach { order ->
+                    // For each active order, if it's currently tracked in our UI, we could update it.
+                    // However, our UI is list-based (chat). To show live updates, we can either:
+                    // 1. Add a new message (noisy)
+                    // 2. Update existing message (preferred but needs ID tracking in ViewModel)
+                    
+                    // Simple POC: Add a message if status changes for the latest order
+                    // In a real app, you'd use a more sophisticated state management.
+                    Log.d("AssistantFlow", "Live update for order ${order.id.value}: ${order.status}")
+                }
+            }
+        }
     }
 
     private fun observeChatHistory() {
@@ -225,6 +264,12 @@ class AssistantViewModel @Inject constructor(
         }
     }
 
+    fun navigateToCheckout() {
+        viewModelScope.launch {
+            _navigationEvents.emit(AssistantNavigationEvent.NavigateToCheckout)
+        }
+    }
+
     fun placeOrder(isCod: Boolean) {
         viewModelScope.launch {
             val total = menuRepository.getCartTotal()
@@ -232,14 +277,49 @@ class AssistantViewModel @Inject constructor(
             
             Log.d("AssistantFlow", "🛒 Placing order: isCod=$isCod, total=$total")
             
+            // Generate dummy order items for the new order
+            val cart = menuRepository.getCart()
+            val orderItems = cart.map { 
+                OrderItem(
+                    menuItemId = it.menuItem.id,
+                    menuItemName = it.menuItem.name,
+                    quantity = it.quantity,
+                    unitPrice = it.menuItem.price
+                )
+            }
+
+            val orderId = OrderId()
+            val newOrder = com.example.a2ui_sample.domain.model.Order(
+                id = orderId,
+                items = orderItems,
+                subtotal = Price(total),
+                tax = Price((total * 0.05).toInt()),
+                totalAmount = Price((total * 1.05).toInt()),
+                status = DomainOrderStatus.PENDING
+            )
+
+            // Save order to repository
+            orderRepository.placeOrder(newOrder)
+
             // Clear cart in repository
             menuRepository.clearCart()
             
+            // Show Live Order Status Card immediately
+            val statusMsg = AssistantChatMessage(
+                content = AssistantUiState.OrderStatus(
+                    message = "Order placed successfully! (ID: ${orderId.value.take(8).uppercase()}). I'm tracking your order live! 🚀",
+                    status = "PENDING",
+                    progress = 0.1f
+                ),
+                isFromUser = false
+            )
+            saveMessageToDb(statusMsg)
+
             // Show success message in chat
             val msg = if (isCod) {
-                "Order placed successfully via COD! Your delicious meal is being prepared."
+                "Your delicious meal is being prepared. It will be delivered soon!"
             } else {
-                "Payment successful! Order placed. Your delicious meal is being prepared."
+                "Payment successful! Your delicious meal is being prepared."
             }
             
             val assistantMsg = AssistantChatMessage(
@@ -248,6 +328,32 @@ class AssistantViewModel @Inject constructor(
             )
             saveMessageToDb(assistantMsg)
         }
+    }
+
+    fun submitFeedback(orderId: String, rating: Int, comment: String) {
+        viewModelScope.launch {
+            val feedback = Feedback(
+                id = com.example.a2ui_sample.domain.valueobjects.FeedbackId(),
+                orderId = OrderId(orderId),
+                customerId = CustomerId("guest"),
+                foodRating = Rating(rating),
+                deliveryRating = Rating(rating),
+                packagingRating = Rating(rating),
+                overallRating = Rating(rating),
+                comment = comment,
+                sentiment = if (rating >= 4) Sentiment.POSITIVE else Sentiment.NEGATIVE
+            )
+            feedbackRepository.submitFeedback(feedback)
+            Log.d("AssistantFlow", "Feedback submitted for $orderId: $rating stars")
+        }
+    }
+
+    fun addSystemMessage(text: String) {
+        val msg = AssistantChatMessage(
+            content = AssistantUiState.TextResponse(text),
+            isFromUser = false
+        )
+        saveMessageToDb(msg)
     }
 
     fun sendMessage(text: String) {
