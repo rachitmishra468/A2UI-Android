@@ -179,6 +179,16 @@ class AssistantViewModel @Inject constructor(
                             rdr.setLenient(true)
                             gson.fromJson(rdr, AssistantUiState.CheckoutSummary::class.java)
                         }
+                        "CouponList" -> {
+                            val rdr = JsonReader(StringReader(dataJson))
+                            rdr.setLenient(true)
+                            gson.fromJson(rdr, AssistantUiState.CouponList::class.java)
+                        }
+                        "InfoCard" -> {
+                            val rdr = JsonReader(StringReader(dataJson))
+                            rdr.setLenient(true)
+                            gson.fromJson(rdr, AssistantUiState.InfoCard::class.java)
+                        }
                         "Error" -> AssistantUiState.Error(fallbackText)
                         else -> AssistantUiState.TextResponse(fallbackText)
                     }

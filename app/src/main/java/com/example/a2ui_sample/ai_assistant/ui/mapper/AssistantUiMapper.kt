@@ -172,12 +172,27 @@ class AssistantUiMapper @Inject constructor() {
                 "get_available_coupons" -> {
                     val innerData = (data["result"] as? Map<*, *>) ?: data
                     val msg = innerData["message"] as? String ?: data["message"] as? String ?: text
-                    val couponList = innerData["coupons"] as? List<*> ?: data["coupons"] as? List<*> ?: emptyList<Any?>()
+                    val rawCoupons = innerData["coupons"] as? List<*> ?: data["coupons"] as? List<*>
+                    
+                    val coupons = convertToCoupons(rawCoupons)
 
-                    if (couponList.isEmpty()) {
+                    if (coupons.isEmpty()) {
                         AssistantUiState.TextResponse(msg.ifBlank { "No active coupons available right now." })
                     } else {
-                        AssistantUiState.TextResponse(buildCouponSummary(couponList, msg))
+                        AssistantUiState.CouponList(coupons, msg)
+                    }
+                }
+                "get_restaurant_guidelines" -> {
+                    val content = data["content"] as? String ?: ""
+                    val msg = data["message"] as? String ?: text
+                    
+                    if (text.isBlank() || text == "I processed your request.") {
+                        // If the model hasn't commented yet, don't show a bubble for the raw guidelines
+                        // unless we want to show an InfoCard.
+                        // Let's return blank so the Orchestrator doesn't add a redundant bubble.
+                        AssistantUiState.TextResponse("")
+                    } else {
+                        AssistantUiState.TextResponse(text)
                     }
                 }
                 "validate_coupon" -> {
@@ -366,6 +381,18 @@ class AssistantUiMapper @Inject constructor() {
         } catch (e: Exception) {
             Log.e("AssistantFlow", "Error converting menu item: ${e.message}")
             null
+        }
+    }
+
+    private fun convertToCoupons(data: Any?): List<com.example.a2ui_sample.domain.model.Coupon> {
+        if (data == null) return emptyList()
+        return try {
+            val json = gson.toJson(data)
+            val listType = object : TypeToken<List<com.example.a2ui_sample.domain.model.Coupon>>() {}.type
+            gson.fromJson(json, listType) ?: emptyList()
+        } catch (e: Exception) {
+            Log.e("AssistantFlow", "Error converting coupons: ${e.message}")
+            emptyList()
         }
     }
 
